@@ -10,6 +10,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.util.Map;
 
 @Controller
 public class GameController {
@@ -22,15 +23,24 @@ public class GameController {
         this.messaging = messaging;
     }
 
-    @MessageMapping("/game/find")
-    public void findGame(Principal principal) {
+    @MessageMapping("/game/create")
+    public void createRoom(Principal principal) {
         String playerId = principal.getName();
-        String gameId = gameService.findOrCreateGame(playerId);
-        Game game = gameService.getGame(gameId);
-        // Notify both players on the game-specific topic
-        sendGameStateToPlayers(game);
-        // Also notify on the fixed "found" topic so the player that just joined receives it
-        messaging.convertAndSendToUser(playerId, "/topic/game/found", buildResponse(game, playerId));
+        Game game = gameService.createGame(playerId);
+        messaging.convertAndSendToUser(playerId, "/topic/game/created",
+                Map.of("gameId", game.getId()));
+    }
+
+    @MessageMapping("/game/join")
+    public void joinRoom(GameMessage msg, Principal principal) {
+        String playerId = principal.getName();
+        try {
+            Game game = gameService.joinGame(msg.getGameId(), playerId);
+            sendGameStateToPlayers(game);
+        } catch (Exception e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", e.getMessage()));
+        }
     }
 
     @MessageMapping("/game/place-ship")

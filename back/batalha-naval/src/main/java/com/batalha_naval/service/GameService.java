@@ -4,40 +4,40 @@ import com.batalha_naval.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.UUID;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GameService {
 
     private final ConcurrentHashMap<String, Game> games = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> codeToGameId = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> scores = new ConcurrentHashMap<>();
+    private final Random random = new Random();
 
     public Game createGame(String playerId) {
         Game game = new Game();
-        game.setId(UUID.randomUUID().toString());
+        String code = generateCode();
+        game.setId(code);
         game.setPlayer1Id(playerId);
-        games.put(game.getId(), game);
+        games.put(code, game);
+        codeToGameId.put(code, code);
         return game;
     }
 
-    public Game joinGame(String gameId, String playerId) {
-        Game game = getGame(gameId);
+    public Game joinGame(String code, String playerId) {
+        Game game = games.get(code.toUpperCase());
+        if (game == null) {
+            throw new IllegalArgumentException("Sala não encontrada: " + code);
+        }
         if (game.getPlayer2Id() != null) {
-            throw new IllegalStateException("Game is already full");
+            throw new IllegalStateException("Sala já está cheia");
+        }
+        if (playerId.equals(game.getPlayer1Id())) {
+            throw new IllegalStateException("Você já está nesta sala");
         }
         game.setPlayer2Id(playerId);
         return game;
-    }
-
-    public String findOrCreateGame(String playerId) {
-        for (Game game : games.values()) {
-            if (game.getPlayer2Id() == null && !playerId.equals(game.getPlayer1Id())) {
-                joinGame(game.getId(), playerId);
-                return game.getId();
-            }
-        }
-        return createGame(playerId).getId();
     }
 
     public Game getGame(String gameId) {
@@ -72,5 +72,18 @@ public class GameService {
 
     public int getPlayerScore(String playerId) {
         return scores.getOrDefault(playerId, 0);
+    }
+
+    private String generateCode() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        String code;
+        do {
+            StringBuilder sb = new StringBuilder(4);
+            for (int i = 0; i < 4; i++) {
+                sb.append(chars.charAt(random.nextInt(chars.length())));
+            }
+            code = sb.toString();
+        } while (games.containsKey(code));
+        return code;
     }
 }

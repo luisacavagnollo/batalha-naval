@@ -6,6 +6,8 @@ const WS_URL = import.meta.env.VITE_WS_URL;
 export function useGame(token) {
   const clientRef = useRef(null);
   const [gameState, setGameState] = useState(null);
+  const [roomCode, setRoomCode] = useState(null);
+  const [error, setError] = useState(null);
   const [emote, setEmote] = useState(null);
   const [connected, setConnected] = useState(false);
   const subscribedGameRef = useRef(null);
@@ -27,27 +29,34 @@ export function useGame(token) {
   }, []);
 
   const connect = useCallback(() => {
-    if (clientRef.current?.connected) return;
+    return new Promise((resolve) => {
+      if (clientRef.current?.connected) { resolve(); return; }
 
-    const client = new Client({
-      brokerURL: WS_URL,
-      connectHeaders: { token },
-      onConnect: () => {
-        setConnected(true);
-        // Subscribe to the fixed "found" topic to receive initial game state
-        client.subscribe('/user/topic/game/found', (msg) => {
-          const state = JSON.parse(msg.body);
-          setGameState(state);
-          if (state.gameId) {
-            subscribeToGame(state.gameId);
-          }
-        });
-      },
-      onDisconnect: () => setConnected(false),
+      const client = new Client({
+        brokerURL: WS_URL,
+        connectHeaders: { token },
+        onConnect: () => {
+          setConnected(true);
+
+          client.subscribe('/user/topic/game/created', (msg) => {
+            const data = JSON.parse(msg.body);
+            setRoomCode(data.gameId);
+            subscribeToGame(data.gameId);
+          });
+
+          client.subscribe('/user/topic/game/error', (msg) => {
+            const data = JSON.parse(msg.body);
+            setError(data.message);
+          });
+
+          resolve();
+        },
+        onDisconnect: () => setConnected(false),
+      });
+
+      client.activate();
+      clientRef.current = client;
     });
-
-    client.activate();
-    clientRef.current = client;
   }, [token, subscribeToGame]);
 
   const disconnect = useCallback(() => {
@@ -56,9 +65,17 @@ export function useGame(token) {
     setConnected(false);
   }, []);
 
-  const findGame = useCallback(() => {
-    clientRef.current?.publish({ destination: '/app/game/find', body: '{}' });
+  const createRoom = useCallback(() => {
+    clientRef.current?.publish({ destination: '/app/game/create', body: '{}' });
   }, []);
+
+  const joinRoom = useCallback((code) => {
+    subscribeToGame(code.toUpperCase());
+    clientRef.current?.publish({
+      destination: '/app/game/join',
+      body: JSON.stringify({ gameId: code.toUpperCase() }),
+    });
+  }, [subscribeToGame]);
 
   const placeShip = useCallback((gameId, shipType, row, col, orientation) => {
     clientRef.current?.publish({
@@ -82,8 +99,8 @@ export function useGame(token) {
   }, []);
 
   return {
-    gameState, emote, connected,
+    gameState, roomCode, error, emote, connected,
     connect, disconnect, subscribeToGame,
-    findGame, placeShip, shoot, sendEmote,
+    createRoom, joinRoom, placeShip, shoot, sendEmote,
   };
 }

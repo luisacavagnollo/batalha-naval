@@ -38,32 +38,28 @@ class GameServiceTest {
     }
 
     @Test
-    void findOrCreateGame_noWaitingGame_createsNew() {
-        String gameId = gameService.findOrCreateGame("player1");
-        assertNotNull(gameId);
-        assertEquals("player1", gameService.getGame(gameId).getPlayer1Id());
+    void joinGame_samePlayer_throws() {
+        Game game = gameService.createGame("player1");
+        assertThrows(IllegalStateException.class, () -> gameService.joinGame(game.getId(), "player1"));
     }
 
     @Test
-    void findOrCreateGame_waitingGameExists_joinsIt() {
-        String gameId1 = gameService.findOrCreateGame("player1");
-        String gameId2 = gameService.findOrCreateGame("player2");
-        assertEquals(gameId1, gameId2);
-        assertEquals("player2", gameService.getGame(gameId1).getPlayer2Id());
+    void joinGame_invalidCode_throws() {
+        assertThrows(IllegalArgumentException.class, () -> gameService.joinGame("ZZZZ", "player1"));
     }
 
     @Test
-    void findOrCreateGame_doesNotJoinOwnGame() {
-        String gameId1 = gameService.findOrCreateGame("player1");
-        String gameId2 = gameService.findOrCreateGame("player1");
-        assertNotEquals(gameId1, gameId2);
+    void createGame_generatesUniqueCode() {
+        Game g1 = gameService.createGame("player1");
+        Game g2 = gameService.createGame("player2");
+        assertNotEquals(g1.getId(), g2.getId());
     }
 
     @Test
     void shoot_incrementsScoreOnWin() {
-        String gameId = gameService.findOrCreateGame("p1");
-        gameService.findOrCreateGame("p2");
-        Game game = gameService.getGame(gameId);
+        Game game = gameService.createGame("p1");
+        gameService.joinGame(game.getId(), "p2");
+        String gameId = game.getId();
 
         placeAllShips(gameId, "p1");
         placeAllShips(gameId, "p2");
@@ -80,6 +76,7 @@ class GameServiceTest {
         int p2Row = 5;
         int p2Col = 0;
         for (int[] t : targets) {
+            game = gameService.getGame(gameId);
             if (!game.getCurrentTurnPlayerId().equals("p1")) {
                 gameService.shoot(gameId, "p2", p2Row, p2Col++);
                 if (p2Col >= 10) { p2Col = 0; p2Row++; }
