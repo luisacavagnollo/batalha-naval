@@ -27,7 +27,10 @@ public class GameController {
         String playerId = principal.getName();
         String gameId = gameService.findOrCreateGame(playerId);
         Game game = gameService.getGame(gameId);
+        // Notify both players on the game-specific topic
         sendGameStateToPlayers(game);
+        // Also notify on the fixed "found" topic so the player that just joined receives it
+        messaging.convertAndSendToUser(playerId, "/topic/game/found", buildResponse(game, playerId));
     }
 
     @MessageMapping("/game/place-ship")

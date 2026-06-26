@@ -9,7 +9,7 @@ public enum ShipType {
 
     private final int size;
 
-    private ShipType(int size) { this.size = size; }
+    ShipType(int size) { this.size = size; }
 
     public int getSize() { return size; }
 }

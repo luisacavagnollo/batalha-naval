@@ -8,29 +8,12 @@ export function useGame(token) {
   const [gameState, setGameState] = useState(null);
   const [emote, setEmote] = useState(null);
   const [connected, setConnected] = useState(false);
+  const subscribedGameRef = useRef(null);
 
-  const connect = useCallback(() => {
-    if (clientRef.current?.connected) return;
-
-    const client = new Client({
-      brokerURL: WS_URL,
-      connectHeaders: { token },
-      onConnect: () => setConnected(true),
-      onDisconnect: () => setConnected(false),
-    });
-
-    client.activate();
-    clientRef.current = client;
-  }, [token]);
-
-  const disconnect = useCallback(() => {
-    clientRef.current?.deactivate();
-    setConnected(false);
-  }, []);
-
-  const subscribe = useCallback((gameId) => {
+  const subscribeToGame = useCallback((gameId) => {
     const client = clientRef.current;
-    if (!client) return;
+    if (!client || subscribedGameRef.current === gameId) return;
+    subscribedGameRef.current = gameId;
 
     client.subscribe(`/user/topic/game/${gameId}`, (msg) => {
       setGameState(JSON.parse(msg.body));
@@ -41,6 +24,36 @@ export function useGame(token) {
       setEmote(data);
       setTimeout(() => setEmote(null), 3000);
     });
+  }, []);
+
+  const connect = useCallback(() => {
+    if (clientRef.current?.connected) return;
+
+    const client = new Client({
+      brokerURL: WS_URL,
+      connectHeaders: { token },
+      onConnect: () => {
+        setConnected(true);
+        // Subscribe to the fixed "found" topic to receive initial game state
+        client.subscribe('/user/topic/game/found', (msg) => {
+          const state = JSON.parse(msg.body);
+          setGameState(state);
+          if (state.gameId) {
+            subscribeToGame(state.gameId);
+          }
+        });
+      },
+      onDisconnect: () => setConnected(false),
+    });
+
+    client.activate();
+    clientRef.current = client;
+  }, [token, subscribeToGame]);
+
+  const disconnect = useCallback(() => {
+    clientRef.current?.deactivate();
+    subscribedGameRef.current = null;
+    setConnected(false);
   }, []);
 
   const findGame = useCallback(() => {
@@ -70,7 +83,7 @@ export function useGame(token) {
 
   return {
     gameState, emote, connected,
-    connect, disconnect, subscribe,
+    connect, disconnect, subscribeToGame,
     findGame, placeShip, shoot, sendEmote,
   };
 }

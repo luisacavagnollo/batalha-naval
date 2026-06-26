@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 
@@ -6,20 +6,27 @@ export default function Lobby() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const [searching, setSearching] = useState(false);
-  const { connect, findGame, gameState, subscribe } = useGame(token);
+  const { connect, connected, findGame, gameState } = useGame(token);
   const navigate = useNavigate();
 
   const handleFind = () => {
     connect();
     setSearching(true);
-    // Pequeno delay para garantir conexão
-    setTimeout(() => findGame(), 500);
   };
 
-  // Quando receber gameState, redirecionar
-  if (gameState?.gameId) {
-    navigate(`/place-ships/${gameState.gameId}`);
-  }
+  // Once connected, send findGame
+  useEffect(() => {
+    if (connected && searching) {
+      findGame();
+    }
+  }, [connected, searching, findGame]);
+
+  // When gameState arrives, navigate
+  useEffect(() => {
+    if (gameState?.gameId) {
+      navigate(`/place-ships/${gameState.gameId}`);
+    }
+  }, [gameState, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
