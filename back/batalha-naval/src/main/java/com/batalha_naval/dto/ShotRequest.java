@@ -1,14 +1,22 @@
 package com.batalha_naval.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class ShotRequest {
     private String gameId;
     private int row;
     private int col;
+
+    public ShotRequest() {}
+
+    public ShotRequest(String gameId, int row, int col) {
+        this.gameId = gameId;
+        this.row = row;
+        this.col = col;
+    }
+
+    public String getGameId() { return gameId; }
+    public void setGameId(String gameId) { this.gameId = gameId; }
+    public int getRow() { return row; }
+    public void setRow(int row) { this.row = row; }
+    public int getCol() { return col; }
+    public void setCol(int col) { this.col = col; }
 }

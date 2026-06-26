@@ -1,7 +1,6 @@
 package com.batalha_naval.config;
 
 import com.batalha_naval.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -13,10 +12,13 @@ import org.springframework.stereotype.Component;
 import java.security.Principal;
 
 @Component
-@RequiredArgsConstructor
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private final JwtUtil jwtUtil;
+
+    public WebSocketAuthInterceptor(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {

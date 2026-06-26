@@ -1,6 +1,5 @@
 package com.batalha_naval.security;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,10 +19,13 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

@@ -1,11 +1,8 @@
 package com.batalha_naval.domain;
 
-import lombok.Getter;
-
 import java.util.ArrayList;
 import java.util.List;
 
-@Getter
 public class Board {
     private final CellState[][] grid = new CellState[10][10];
     private final List<Ship> ships = new ArrayList<>();
@@ -15,6 +12,9 @@ public class Board {
             for (int c = 0; c < 10; c++)
                 grid[r][c] = CellState.EMPTY;
     }
+
+    public CellState[][] getGrid() { return grid; }
+    public List<Ship> getShips() { return ships; }
 
     public boolean placeShip(ShipType type, int row, int col, Orientation orientation) {
         Ship ship = new Ship();

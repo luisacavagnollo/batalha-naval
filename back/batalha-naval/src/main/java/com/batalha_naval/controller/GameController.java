@@ -5,7 +5,6 @@ import com.batalha_naval.dto.EmoteMessage;
 import com.batalha_naval.dto.GameMessage;
 import com.batalha_naval.dto.GameStateResponse;
 import com.batalha_naval.service.GameService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
@@ -13,11 +12,15 @@ import org.springframework.stereotype.Controller;
 import java.security.Principal;
 
 @Controller
-@RequiredArgsConstructor
 public class GameController {
 
     private final GameService gameService;
     private final SimpMessagingTemplate messaging;
+
+    public GameController(GameService gameService, SimpMessagingTemplate messaging) {
+        this.gameService = gameService;
+        this.messaging = messaging;
+    }
 
     @MessageMapping("/game/find")
     public void findGame(Principal principal) {

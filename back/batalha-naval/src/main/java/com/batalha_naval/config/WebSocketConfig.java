@@ -1,6 +1,5 @@
 package com.batalha_naval.config;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -13,10 +12,13 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Configuration
 @EnableWebSocketMessageBroker
 @Order(Ordered.HIGHEST_PRECEDENCE + 99)
-@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor authInterceptor;
+
+    public WebSocketConfig(WebSocketAuthInterceptor authInterceptor) {
+        this.authInterceptor = authInterceptor;
+    }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
