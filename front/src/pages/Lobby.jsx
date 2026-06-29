@@ -6,7 +6,7 @@ export default function Lobby() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const [code, setCode] = useState('');
-  const { connect, connected, createRoom, joinRoom, roomCode, gameState, error } = useGame(token);
+  const { connect, connected, createRoom, joinRoom, roomCode, gameState, error, subscribeToGame } = useGame(token);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,6 +14,10 @@ export default function Lobby() {
       navigate(`/place-ships/${gameState.gameId}`);
     }
   }, [gameState, navigate]);
+
+  useEffect(() => {
+    if (roomCode) subscribeToGame(roomCode);
+  }, [roomCode, subscribeToGame]);
 
   const handleCreate = async () => {
     await connect();

@@ -1,37 +1,48 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Client } from '@stomp/stompjs';
 
 const WS_URL = import.meta.env.VITE_WS_URL;
 
+// Singleton client para manter uma única conexão STOMP
+let sharedClient = null;
+let sharedConnectedPromise = null;
+const subscribers = new Set();
+
+function notifySubscribers(topic, data) {
+  subscribers.forEach(fn => fn(topic, data));
+}
+
 export function useGame(token) {
-  const clientRef = useRef(null);
   const [gameState, setGameState] = useState(null);
   const [roomCode, setRoomCode] = useState(null);
   const [error, setError] = useState(null);
   const [emote, setEmote] = useState(null);
   const [connected, setConnected] = useState(false);
-  const subscribedGameRef = useRef(null);
+  const subscribedGamesRef = useRef(new Set());
 
-  const subscribeToGame = useCallback((gameId) => {
-    const client = clientRef.current;
-    if (!client || subscribedGameRef.current === gameId) return;
-    subscribedGameRef.current = gameId;
-
-    client.subscribe(`/user/topic/game/${gameId}`, (msg) => {
-      setGameState(JSON.parse(msg.body));
-    });
-
-    client.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
-      const data = JSON.parse(msg.body);
-      setEmote(data);
-      setTimeout(() => setEmote(null), 3000);
-    });
+  // Registrar listener local
+  useEffect(() => {
+    const handler = (topic, data) => {
+      if (topic === 'gameState') setGameState(data);
+      if (topic === 'roomCode') setRoomCode(data);
+      if (topic === 'error') setError(data);
+      if (topic === 'emote') {
+        setEmote(data);
+        setTimeout(() => setEmote(null), 3000);
+      }
+    };
+    subscribers.add(handler);
+    return () => subscribers.delete(handler);
   }, []);
 
   const connect = useCallback(() => {
-    return new Promise((resolve) => {
-      if (clientRef.current?.connected) { resolve(); return; }
+    if (sharedClient?.connected) {
+      setConnected(true);
+      return Promise.resolve();
+    }
+    if (sharedConnectedPromise) return sharedConnectedPromise;
 
+    sharedConnectedPromise = new Promise((resolve) => {
       const client = new Client({
         brokerURL: WS_URL,
         connectHeaders: { token },
@@ -40,59 +51,79 @@ export function useGame(token) {
 
           client.subscribe('/user/topic/game/created', (msg) => {
             const data = JSON.parse(msg.body);
-            setRoomCode(data.gameId);
-            subscribeToGame(data.gameId);
+            notifySubscribers('roomCode', data.gameId);
           });
 
           client.subscribe('/user/topic/game/error', (msg) => {
             const data = JSON.parse(msg.body);
-            setError(data.message);
+            notifySubscribers('error', data.message);
           });
 
           resolve();
         },
-        onDisconnect: () => setConnected(false),
+        onDisconnect: () => {
+          setConnected(false);
+          sharedClient = null;
+          sharedConnectedPromise = null;
+        },
       });
 
       client.activate();
-      clientRef.current = client;
+      sharedClient = client;
     });
-  }, [token, subscribeToGame]);
+
+    return sharedConnectedPromise;
+  }, [token]);
 
   const disconnect = useCallback(() => {
-    clientRef.current?.deactivate();
-    subscribedGameRef.current = null;
+    sharedClient?.deactivate();
+    sharedClient = null;
+    sharedConnectedPromise = null;
     setConnected(false);
   }, []);
 
+  const subscribeToGame = useCallback((gameId) => {
+    if (!sharedClient || subscribedGamesRef.current.has(gameId)) return;
+    subscribedGamesRef.current.add(gameId);
+
+    sharedClient.subscribe(`/user/topic/game/${gameId}`, (msg) => {
+      notifySubscribers('gameState', JSON.parse(msg.body));
+    });
+
+    sharedClient.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
+      notifySubscribers('emote', JSON.parse(msg.body));
+    });
+  }, []);
+
   const createRoom = useCallback(() => {
-    clientRef.current?.publish({ destination: '/app/game/create', body: '{}' });
+    sharedClient?.publish({ destination: '/app/game/create', body: '{}' });
   }, []);
 
   const joinRoom = useCallback((code) => {
-    subscribeToGame(code.toUpperCase());
-    clientRef.current?.publish({
+    const id = code.toUpperCase();
+    subscribeToGame(id);
+    sharedClient?.publish({
       destination: '/app/game/join',
-      body: JSON.stringify({ gameId: code.toUpperCase() }),
+      body: JSON.stringify({ gameId: id }),
     });
   }, [subscribeToGame]);
 
   const placeShip = useCallback((gameId, shipType, row, col, orientation) => {
-    clientRef.current?.publish({
+    sharedClient?.publish({
       destination: '/app/game/place-ship',
       body: JSON.stringify({ gameId, shipType, row, col, orientation }),
     });
   }, []);
 
   const shoot = useCallback((gameId, row, col) => {
-    clientRef.current?.publish({
+    sharedClient?.publish({
       destination: '/app/game/shoot',
       body: JSON.stringify({ gameId, row, col }),
     });
   }, []);
 
   const sendEmote = useCallback((gameId, emoteChar) => {
-    clientRef.current?.publish({
+    sharedClient?.publish({
       destination: '/app/game/emote',
       body: JSON.stringify({ gameId, emote: emoteChar }),
     });
