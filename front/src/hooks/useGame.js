@@ -6,14 +6,16 @@ const WS_URL = import.meta.env.VITE_WS_URL;
 // Singleton client para manter uma única conexão STOMP
 let sharedClient = null;
 let sharedConnectedPromise = null;
+let lastGameState = null;
 const subscribers = new Set();
 
 function notifySubscribers(topic, data) {
+  if (topic === 'gameState') lastGameState = data;
   subscribers.forEach(fn => fn(topic, data));
 }
 
 export function useGame(token) {
-  const [gameState, setGameState] = useState(null);
+  const [gameState, setGameState] = useState(lastGameState);
   const [roomCode, setRoomCode] = useState(null);
   const [error, setError] = useState(null);
   const [emote, setEmote] = useState(null);

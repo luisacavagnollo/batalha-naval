@@ -1,4 +1,6 @@
-import { useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useGame } from '../hooks/useGame';
 
 const CELL_COLORS = {
   EMPTY: 'bg-blue-900',
@@ -10,6 +12,7 @@ const CELL_COLORS = {
 const EMOTES = ['👍', '😂', '😱', '😢', '💀', '🫡'];
 
 function Grid({ board, onClick, showShips }) {
+  if (!board) return null;
   return (
     <div className="grid grid-cols-10 gap-0.5">
       {board.flat().map((cell, i) => {
@@ -30,30 +33,63 @@ function Grid({ board, onClick, showShips }) {
 
 export default function Game() {
   const { gameId } = useParams();
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote } = useGame(token);
 
-  // Placeholder boards para renderização — serão substituídos pelo gameState real
-  const emptyBoard = Array(10).fill(Array(10).fill('EMPTY'));
+  useEffect(() => {
+    connect().then(() => subscribeToGame(gameId));
+  }, [connect, subscribeToGame, gameId]);
+
+  useEffect(() => {
+    if (gameState?.phase === 'FINISHED') {
+      navigate(`/game-over?winner=${gameState.winnerId}`);
+    }
+  }, [gameState, navigate]);
+
+  const handleShoot = (row, col) => {
+    if (!gameState?.isMyTurn) return;
+    shoot(gameId, row, col);
+  };
+
+  const turnText = gameState?.isMyTurn ? '🎯 Sua vez!' : 'Aguardando oponente...';
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-4 flex flex-col items-center">
       <h1 className="text-xl font-bold mb-2">⚓ Batalha Naval</h1>
-      <p className="text-slate-400 mb-4">Aguardando turno...</p>
+      <p className={`mb-4 ${gameState?.isMyTurn ? 'text-green-400 font-semibold' : 'text-slate-400'}`}>
+        {turnText}
+      </p>
+
+      {gameState?.lastShotResult && (
+        <p className="mb-2 text-sm text-yellow-300">
+          Último tiro: {gameState.lastShotResult}
+          {gameState.sunkShipType && ` — ${gameState.sunkShipType} afundado!`}
+        </p>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div>
           <h2 className="text-center text-sm text-slate-300 mb-1">Meu Tabuleiro</h2>
-          <Grid board={emptyBoard} showShips />
+          <Grid board={gameState?.myBoard} showShips />
         </div>
         <div>
           <h2 className="text-center text-sm text-slate-300 mb-1">Oponente</h2>
-          <Grid board={emptyBoard} onClick={(r, c) => { /* shoot */ }} />
+          <Grid board={gameState?.opponentBoard} onClick={handleShoot} />
         </div>
       </div>
 
-      {/* Emotes */}
+      {/* Emote recebido */}
+      {emote && (
+        <div className="fixed top-20 right-8 bg-slate-800 px-4 py-2 rounded-xl text-3xl animate-bounce">
+          {emote.emote}
+        </div>
+      )}
+
+      {/* Barra de emotes */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-slate-800 p-2 rounded-xl">
         {EMOTES.map(e => (
-          <button key={e} className="text-2xl hover:scale-125 transition-transform">
+          <button key={e} onClick={() => sendEmote(gameId, e)} className="text-2xl hover:scale-125 transition-transform">
             {e}
           </button>
         ))}
