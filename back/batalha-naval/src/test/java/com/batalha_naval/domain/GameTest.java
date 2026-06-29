@@ -34,7 +34,8 @@ class GameTest {
         placeAllShips("p1", game);
         placeAllShips("p2", game);
         assertEquals(GamePhase.IN_PROGRESS, game.getPhase());
-        assertEquals("p1", game.getCurrentTurnPlayerId());
+        // Turno é aleatório, mas deve ser um dos dois
+        assertTrue(game.getCurrentTurnPlayerId().equals("p1") || game.getCurrentTurnPlayerId().equals("p2"));
     }
 
     @Test
@@ -47,7 +48,8 @@ class GameTest {
     void shoot_correctTurn_returnsResult() {
         placeAllShips("p1", game);
         placeAllShips("p2", game);
-        ShotOutcome outcome = game.shoot("p1", 0, 0);
+        String current = game.getCurrentTurnPlayerId();
+        ShotOutcome outcome = game.shoot(current, 0, 0);
         assertNotNull(outcome);
         assertEquals(ShotResult.HIT, outcome.getResult());
     }
@@ -56,15 +58,28 @@ class GameTest {
     void shoot_wrongTurn_returnsNull() {
         placeAllShips("p1", game);
         placeAllShips("p2", game);
-        assertNull(game.shoot("p2", 0, 0));
+        String notCurrent = game.getOpponentId(game.getCurrentTurnPlayerId());
+        assertNull(game.shoot(notCurrent, 0, 0));
     }
 
     @Test
-    void shoot_alternatesTurns() {
+    void shoot_miss_alternatesTurns() {
         placeAllShips("p1", game);
         placeAllShips("p2", game);
-        game.shoot("p1", 9, 9); // p1 shoots (miss likely)
-        assertEquals("p2", game.getCurrentTurnPlayerId());
+        String current = game.getCurrentTurnPlayerId();
+        // (9,9) não tem navio — deve ser MISS e trocar turno
+        game.shoot(current, 9, 9);
+        assertEquals(game.getOpponentId(current), game.getCurrentTurnPlayerId());
+    }
+
+    @Test
+    void shoot_hit_keepsTurn() {
+        placeAllShips("p1", game);
+        placeAllShips("p2", game);
+        String current = game.getCurrentTurnPlayerId();
+        // (0,0) tem navio — deve ser HIT e manter turno
+        game.shoot(current, 0, 0);
+        assertEquals(current, game.getCurrentTurnPlayerId());
     }
 
     @Test
@@ -76,7 +91,11 @@ class GameTest {
         placeAllShips("p1", g);
         placeAllShips("p2", g);
 
+        // Forçar p1 a começar para simplificar o teste
+        g.setCurrentTurnPlayerId("p1");
+
         // Sink all p2's ships (placed at rows 0-4, col 0-4, vertical)
+        // Com a regra de manter turno ao acertar, p1 joga tudo seguido
         int[][] targets = {
             {0,0},{1,0},{2,0},{3,0},{4,0}, // carrier (5)
             {0,1},{1,1},{2,1},{3,1},       // battleship (4)
@@ -85,13 +104,7 @@ class GameTest {
             {0,4},{1,4}                    // destroyer (2)
         };
 
-        int p2Row = 5;
-        int p2Col = 0;
         for (int[] t : targets) {
-            if (!g.getCurrentTurnPlayerId().equals("p1")) {
-                g.shoot("p2", p2Row, p2Col++);
-                if (p2Col >= 10) { p2Col = 0; p2Row++; }
-            }
             g.shoot("p1", t[0], t[1]);
         }
 

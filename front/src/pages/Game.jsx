@@ -11,18 +11,19 @@ const CELL_COLORS = {
 
 const EMOTES = ['👍', '😂', '😱', '😢', '💀', '🫡'];
 
-function Grid({ board, onClick, showShips }) {
+function Grid({ board, onClick, showShips, active }) {
   if (!board) return null;
   return (
-    <div className="grid grid-cols-10 gap-0.5">
+    <div className={`grid grid-cols-10 gap-0.5 ${active ? 'ring-2 ring-green-500 rounded' : ''}`}>
       {board.flat().map((cell, i) => {
         const row = Math.floor(i / 10);
         const col = i % 10;
         const color = cell === 'SHIP' && !showShips ? CELL_COLORS.EMPTY : CELL_COLORS[cell] || CELL_COLORS.EMPTY;
+        const hover = active && cell === 'EMPTY' ? 'hover:bg-red-400' : '';
         return (
           <div
             key={i}
-            className={`w-7 h-7 sm:w-9 sm:h-9 border border-slate-600 cursor-pointer ${color}`}
+            className={`w-7 h-7 sm:w-9 sm:h-9 border border-slate-600 ${active ? 'cursor-crosshair' : 'cursor-default'} ${color} ${hover}`}
             onClick={() => onClick?.(row, col)}
           />
         );
@@ -48,18 +49,20 @@ export default function Game() {
   }, [gameState, navigate]);
 
   const handleShoot = (row, col) => {
-    if (!gameState?.isMyTurn) return;
+    if (!gameState?.myTurn) return;
+    const cell = gameState.opponentBoard[row][col];
+    if (cell === 'HIT' || cell === 'MISS') return;
     shoot(gameId, row, col);
   };
 
-  const turnText = gameState?.isMyTurn ? '🎯 Sua vez!' : 'Aguardando oponente...';
+  const turnText = gameState?.myTurn ? '🎯 Sua vez! Clique no tabuleiro do oponente' : '⏳ Aguardando oponente...';
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-4 flex flex-col items-center">
       <h1 className="text-xl font-bold mb-2">⚓ Batalha Naval</h1>
-      <p className={`mb-4 ${gameState?.isMyTurn ? 'text-green-400 font-semibold' : 'text-slate-400'}`}>
+      <div className={`mb-4 px-6 py-2 rounded-lg text-lg ${gameState?.myTurn ? 'bg-green-600 text-white font-bold animate-pulse' : 'bg-slate-700 text-slate-300'}`}>
         {turnText}
-      </p>
+      </div>
 
       {gameState?.lastShotResult && (
         <p className="mb-2 text-sm text-yellow-300">
@@ -75,7 +78,7 @@ export default function Game() {
         </div>
         <div>
           <h2 className="text-center text-sm text-slate-300 mb-1">Oponente</h2>
-          <Grid board={gameState?.opponentBoard} onClick={handleShoot} />
+          <Grid board={gameState?.opponentBoard} onClick={handleShoot} active={gameState?.myTurn} />
         </div>
       </div>
 

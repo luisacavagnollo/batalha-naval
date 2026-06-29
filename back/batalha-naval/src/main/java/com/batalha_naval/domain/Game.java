@@ -42,7 +42,7 @@ public class Game {
     public void startGameIfReady() {
         if (allShipsPlaced(player1Id) && allShipsPlaced(player2Id)) {
             phase = GamePhase.IN_PROGRESS;
-            currentTurnPlayerId = player1Id;
+            currentTurnPlayerId = Math.random() < 0.5 ? player1Id : player2Id;
         }
     }
 
@@ -57,7 +57,7 @@ public class Game {
         if (outcome != null && opponentBoard.allShipsSunk()) {
             phase = GamePhase.FINISHED;
             winnerId = playerId;
-        } else if (outcome != null) {
+        } else if (outcome != null && outcome.getResult() == ShotResult.MISS) {
             currentTurnPlayerId = getOpponentId(playerId);
         }
         return outcome;
