@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 
@@ -10,12 +10,13 @@ const SHIPS = [
   { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
 ];
 
-const CELL_SIZE = 40; // px — tamanho de cada célula
-const GAP = 2; // px — gap entre células
+const CELL_SIZE = 40;
+const GAP = 2;
 
 export default function PlaceShips() {
   const { gameId } = useParams();
   const token = localStorage.getItem('token');
+  const username = localStorage.getItem('username');
   const navigate = useNavigate();
   const { connect, connected, subscribeToGame, placeShip, gameState } = useGame(token);
 
@@ -75,9 +76,9 @@ export default function PlaceShips() {
 
   const cellColor = (row, col) => {
     if (hoverCells.some(c => c.row === row && c.col === col)) {
-      return 'bg-emerald-300/50';
+      return 'bg-cyan-500/40';
     }
-    return 'bg-blue-900 hover:bg-blue-700';
+    return 'bg-slate-700 hover:bg-slate-600';
   };
 
   const getShipStyle = (ship) => {
@@ -96,92 +97,105 @@ export default function PlaceShips() {
       return {
         top: `${top}px`,
         left: `${left}px`,
-        width: `${CELL_SIZE}px`,
-        height: `${ship.size * cellTotal - GAP}px`,
+        width: `${ship.size * cellTotal - GAP}px`,
+        height: `${CELL_SIZE}px`,
+        transform: 'rotate(90deg) translateY(-100%)',
+        transformOrigin: 'top left',
       };
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 flex flex-col items-center">
-      <h1 className="text-2xl font-bold mb-4">Posicione seus navios</h1>
+    <div className="min-h-screen bg-slate-900 flex flex-col">
+      {/* Header */}
+      <header className="w-full px-8 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h1 className="text-2xl font-black text-white tracking-wide">BATTLESHIP</h1>
+        <span className="text-slate-400 text-sm">{username}</span>
+      </header>
 
-      <div className="mb-4 flex gap-4 items-center">
-        <button
-          onClick={() => setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL')}
-          className="px-4 py-2 bg-slate-700 rounded hover:bg-slate-600"
-        >
-          Rotacionar ({orientation === 'HORIZONTAL' ? 'H' : 'V'})
-        </button>
-        {!allPlaced && (
-          <span className="text-slate-300">
-            Posicionar: {SHIPS[currentShip].name} ({SHIPS[currentShip].size})
-          </span>
-        )}
-      </div>
+      {/* Conteúdo */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 flex flex-col items-center">
+          <h2 className="text-white text-xl font-bold mb-2">Posicione seus navios</h2>
 
-      {/* Grid com navios sobrepostos */}
-      <div className="relative mb-4" onMouseLeave={() => setHoverCells([])}>
-        <div className="grid grid-cols-10" style={{ gap: `${GAP}px` }}>
-          {Array.from({ length: 100 }, (_, i) => {
-            const row = Math.floor(i / 10);
-            const col = i % 10;
-            return (
-              <div
-                key={i}
-                style={{ width: `${CELL_SIZE}px`, height: `${CELL_SIZE}px` }}
-                className={`border border-slate-600 cursor-pointer ${cellColor(row, col)}`}
-                onMouseEnter={() => handleHover(row, col)}
-                onClick={() => handleClick(row, col)}
+          {!allPlaced && (
+            <p className="text-cyan-400 text-sm mb-4">
+              {SHIPS[currentShip].name} ({SHIPS[currentShip].size} células)
+            </p>
+          )}
+
+          {/* Controles */}
+          <div className="mb-4 flex gap-3">
+            <button
+              onClick={() => setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL')}
+              className="px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm font-bold tracking-wider hover:bg-slate-600 transition-colors"
+            >
+              ROTACIONAR ({orientation === 'HORIZONTAL' ? 'H' : 'V'})
+            </button>
+          </div>
+
+          {/* Grid */}
+          <div className="relative mb-6" onMouseLeave={() => setHoverCells([])}>
+            <div className="grid grid-cols-10" style={{ gap: `${GAP}px` }}>
+              {Array.from({ length: 100 }, (_, i) => {
+                const row = Math.floor(i / 10);
+                const col = i % 10;
+                return (
+                  <div
+                    key={i}
+                    style={{ width: `${CELL_SIZE}px`, height: `${CELL_SIZE}px` }}
+                    className={`border border-slate-600 rounded-sm cursor-pointer transition-colors ${cellColor(row, col)}`}
+                    onMouseEnter={() => handleHover(row, col)}
+                    onClick={() => handleClick(row, col)}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Imagens dos navios */}
+            {placed.map((ship) => (
+              <img
+                key={ship.type}
+                src={ship.img}
+                alt={ship.type}
+                className="absolute pointer-events-none object-fill"
+                style={getShipStyle(ship)}
               />
-            );
-          })}
-        </div>
+            ))}
+          </div>
 
-        {/* Imagens dos navios posicionados */}
-        {placed.map((ship) => (
-          <img
-            key={ship.type}
-            src={ship.img}
-            alt={ship.type}
-            className="absolute pointer-events-none object-fill"
-            style={{
-              ...getShipStyle(ship),
-              ...(ship.orientation === 'VERTICAL' ? {
-                transform: `rotate(90deg) translateY(-100%)`,
-                transformOrigin: 'top left',
-                width: `${ship.size * (CELL_SIZE + GAP) - GAP}px`,
-                height: `${CELL_SIZE}px`,
-              } : {}),
-            }}
-          />
-        ))}
+          {/* Ações */}
+          {allPlaced && !ready && (
+            <button
+              onClick={() => setReady(true)}
+              className="w-full max-w-xs py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-900 font-black text-lg tracking-wide hover:from-cyan-400 hover:to-cyan-300 transition-all shadow-lg shadow-cyan-500/25"
+            >
+              PRONTO
+            </button>
+          )}
+
+          {ready && (
+            <div className="flex items-center gap-3">
+              <div className="animate-spin w-5 h-5 border-3 border-cyan-500 border-t-transparent rounded-full"></div>
+              <span className="text-slate-300 text-sm">Aguardando oponente...</span>
+            </div>
+          )}
+
+          {/* Navios restantes */}
+          {!allPlaced && (
+            <div className="mt-4 flex flex-wrap gap-3 justify-center">
+              {SHIPS.map((s, i) => (
+                <div
+                  key={s.type}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold tracking-wider ${i < currentShip ? 'bg-cyan-600/20 text-cyan-400 line-through opacity-50' : i === currentShip ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-400'}`}
+                >
+                  {s.name} ({s.size})
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-
-      {allPlaced && !ready && (
-        <button
-          onClick={() => setReady(true)}
-          className="px-6 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-semibold text-lg"
-        >
-          Pronto!
-        </button>
-      )}
-
-      {ready && (
-        <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin w-6 h-6 border-4 border-green-500 border-t-transparent rounded-full"></div>
-          <p className="text-slate-300">Aguardando oponente...</p>
-        </div>
-      )}
-
-      {!allPlaced && (
-        <div className="mt-4 text-slate-400 text-sm">
-          <p>Navios restantes:</p>
-          {SHIPS.filter((_, i) => i >= currentShip).map(s => (
-            <span key={s.type} className="mr-3">{s.name} ({s.size})</span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

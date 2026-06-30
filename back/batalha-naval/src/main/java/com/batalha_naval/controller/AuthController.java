@@ -22,7 +22,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@RequestBody AuthRequest request) {
-        User user = userService.register(request.getUsername(), request.getPassword());
+        User user = userService.register(request.getUsername(), request.getEmail(), request.getPassword());
         String token = jwtUtil.generateToken(user.getUsername());
         return ResponseEntity.ok(new AuthResponse(token, user.getUsername()));
     }

@@ -18,9 +18,10 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public User register(String username, String password) {
+    public User register(String username, String email, String password) {
         var user = new User();
         user.setUsername(username);
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
         return userRepository.save(user);
     }

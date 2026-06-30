@@ -6,10 +6,10 @@ const CELL_SIZE = 36;
 const GAP = 2;
 
 const CELL_COLORS = {
-  EMPTY: 'bg-blue-900',
-  SHIP: 'bg-blue-900',
-  HIT: 'bg-red-600',
-  MISS: 'bg-slate-400',
+  EMPTY: 'bg-slate-700',
+  SHIP: 'bg-slate-700',
+  HIT: 'bg-red-500',
+  MISS: 'bg-slate-500',
 };
 
 const SHIP_IMAGES = {
@@ -22,7 +22,6 @@ const SHIP_IMAGES = {
 
 const EMOTES = ['👍', '😂', '😱', '😢', '💀', '🫡'];
 
-// Detecta navios contíguos no board
 function detectShips(board) {
   if (!board) return [];
   const visited = Array.from({ length: 10 }, () => Array(10).fill(false));
@@ -33,13 +32,11 @@ function detectShips(board) {
       if (visited[r][c]) continue;
       if (board[r][c] !== 'SHIP' && board[r][c] !== 'HIT') continue;
 
-      // Tenta expandir horizontalmente
       let hLen = 0;
       while (c + hLen < 10 && (board[r][c + hLen] === 'SHIP' || board[r][c + hLen] === 'HIT') && !visited[r][c + hLen]) {
         hLen++;
       }
 
-      // Tenta expandir verticalmente
       let vLen = 0;
       while (r + vLen < 10 && (board[r + vLen][c] === 'SHIP' || board[r + vLen][c] === 'HIT') && !visited[r + vLen][c]) {
         vLen++;
@@ -57,11 +54,9 @@ function detectShips(board) {
       }
     }
   }
-
   return ships;
 }
 
-// Atribui imagens aos navios detectados por tamanho
 function assignImages(ships) {
   let threeCount = 0;
   return ships
@@ -86,13 +81,12 @@ function MyBoard({ board }) {
     <div className="relative">
       <div className="grid grid-cols-10" style={{ gap: `${GAP}px` }}>
         {board.flat().map((cell, i) => {
-          const color = CELL_COLORS[cell] || CELL_COLORS.EMPTY;
-          const hitOverlay = cell === 'HIT' ? 'bg-red-600' : cell === 'MISS' ? 'bg-slate-400' : '';
+          const color = cell === 'HIT' ? 'bg-red-500' : cell === 'MISS' ? 'bg-slate-500' : 'bg-slate-700';
           return (
             <div
               key={i}
               style={{ width: `${CELL_SIZE}px`, height: `${CELL_SIZE}px` }}
-              className={`border border-slate-600 ${color} ${hitOverlay}`}
+              className={`border border-slate-600 rounded-sm ${color}`}
             />
           );
         })}
@@ -130,17 +124,17 @@ function MyBoard({ board }) {
 function OpponentBoard({ board, onClick, active }) {
   if (!board) return null;
   return (
-    <div className={`grid grid-cols-10 ${active ? 'ring-2 ring-green-500 rounded' : ''}`} style={{ gap: `${GAP}px` }}>
+    <div className={`grid grid-cols-10 rounded-lg ${active ? 'ring-2 ring-cyan-500' : ''}`} style={{ gap: `${GAP}px` }}>
       {board.flat().map((cell, i) => {
         const row = Math.floor(i / 10);
         const col = i % 10;
         const color = CELL_COLORS[cell] || CELL_COLORS.EMPTY;
-        const hover = active && cell === 'EMPTY' ? 'hover:bg-red-400' : '';
+        const hover = active && cell === 'EMPTY' ? 'hover:bg-red-400/60' : '';
         return (
           <div
             key={i}
             style={{ width: `${CELL_SIZE}px`, height: `${CELL_SIZE}px` }}
-            className={`border border-slate-600 ${active ? 'cursor-crosshair' : 'cursor-default'} ${color} ${hover}`}
+            className={`border border-slate-600 rounded-sm ${active ? 'cursor-crosshair' : 'cursor-default'} ${color} ${hover} transition-colors`}
             onClick={() => onClick?.(row, col)}
           />
         );
@@ -153,6 +147,7 @@ export default function Game() {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
+  const username = localStorage.getItem('username');
   const { connect, subscribeToGame, gameState, shoot, sendEmote, emote } = useGame(token);
 
   useEffect(() => {
@@ -172,47 +167,61 @@ export default function Game() {
     shoot(gameId, row, col);
   };
 
-  const turnText = gameState?.myTurn ? '🎯 Sua vez! Clique no tabuleiro do oponente' : '⏳ Aguardando oponente...';
-
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 flex flex-col items-center">
-      <h1 className="text-xl font-bold mb-2">⚓ Batalha Naval</h1>
-      <div className={`mb-4 px-6 py-2 rounded-lg text-lg ${gameState?.myTurn ? 'bg-green-600 text-white font-bold animate-pulse' : 'bg-slate-700 text-slate-300'}`}>
-        {turnText}
+    <div className="min-h-screen bg-slate-900 flex flex-col">
+      {/* Header */}
+      <header className="w-full px-8 py-4 border-b border-slate-700 flex items-center justify-between">
+        <h1 className="text-2xl font-black text-white tracking-wide">BATTLESHIP</h1>
+        <span className="text-slate-400 text-sm">{username}</span>
+      </header>
+
+      {/* Indicador de turno */}
+      <div className="w-full flex justify-center py-4">
+        <div className={`px-8 py-3 rounded-xl text-lg font-bold tracking-wider ${gameState?.myTurn ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-900 animate-pulse' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+          {gameState?.myTurn ? 'SUA VEZ — ATAQUE!' : 'AGUARDANDO OPONENTE...'}
+        </div>
       </div>
 
+      {/* Resultado do último tiro */}
       {gameState?.lastShotResult && (
-        <p className="mb-2 text-sm text-yellow-300">
-          Último tiro: {gameState.lastShotResult}
-          {gameState.sunkShipType && ` — ${gameState.sunkShipType} afundado!`}
-        </p>
+        <div className="w-full flex justify-center pb-2">
+          <span className="text-yellow-400 text-sm font-semibold">
+            Último tiro: {gameState.lastShotResult}
+            {gameState.sunkShipType && ` — ${gameState.sunkShipType} AFUNDADO!`}
+          </span>
+        </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
-        <div>
-          <h2 className="text-center text-sm text-slate-300 mb-2">Meu Tabuleiro</h2>
-          <MyBoard board={gameState?.myBoard} />
-        </div>
-        <div>
-          <h2 className="text-center text-sm text-slate-300 mb-2">Oponente</h2>
-          <OpponentBoard board={gameState?.opponentBoard} onClick={handleShoot} active={gameState?.myTurn} />
+      {/* Tabuleiros */}
+      <div className="flex-1 flex items-center justify-center px-4 pb-20">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+            <h2 className="text-center text-slate-400 text-xs font-bold tracking-wider mb-3 uppercase">Meu Tabuleiro</h2>
+            <MyBoard board={gameState?.myBoard} />
+          </div>
+          <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+            <h2 className="text-center text-slate-400 text-xs font-bold tracking-wider mb-3 uppercase">Oponente</h2>
+            <OpponentBoard board={gameState?.opponentBoard} onClick={handleShoot} active={gameState?.myTurn} />
+          </div>
         </div>
       </div>
 
       {/* Emote recebido */}
       {emote && (
-        <div className="fixed top-20 right-8 bg-slate-800 px-4 py-2 rounded-xl text-3xl animate-bounce">
+        <div className="fixed top-24 right-8 bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl text-4xl animate-bounce shadow-xl">
           {emote.emote}
         </div>
       )}
 
       {/* Barra de emotes */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-slate-800 p-2 rounded-xl">
-        {EMOTES.map(e => (
-          <button key={e} onClick={() => sendEmote(gameId, e)} className="text-2xl hover:scale-125 transition-transform">
-            {e}
-          </button>
-        ))}
+      <div className="fixed bottom-0 left-0 right-0 flex justify-center py-4 bg-slate-900/80 backdrop-blur-sm border-t border-slate-700">
+        <div className="flex gap-3 bg-slate-800 px-6 py-3 rounded-xl border border-slate-700">
+          {EMOTES.map(e => (
+            <button key={e} onClick={() => sendEmote(gameId, e)} className="text-2xl hover:scale-125 transition-transform active:scale-90">
+              {e}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
