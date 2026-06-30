@@ -6,11 +6,16 @@ export default function Lobby() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const [code, setCode] = useState('');
-  const { connect, connected, createRoom, joinRoom, roomCode, gameState, error, subscribeToGame } = useGame(token);
+  const { connect, connected, createRoom, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame } = useGame(token);
   const navigate = useNavigate();
 
+  // Limpar estado da partida anterior ao entrar no lobby
   useEffect(() => {
-    if (gameState?.gameId) {
+    resetGame();
+  }, [resetGame]);
+
+  useEffect(() => {
+    if (gameState?.gameId && gameState.phase !== 'FINISHED') {
       navigate(`/place-ships/${gameState.gameId}`);
     }
   }, [gameState, navigate]);

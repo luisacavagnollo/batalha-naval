@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 
 const SHIPS = [
-  { type: 'CARRIER', name: 'Porta-aviões', size: 5 },
-  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4 },
-  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3 },
-  { type: 'SUBMARINE', name: 'Submarino', size: 3 },
-  { type: 'DESTROYER', name: 'Destroyer', size: 2 },
+  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao/carrier.png' },
+  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao/battleship.png' },
+  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao/cruiser.png' },
+  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao/submarine.png' },
+  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
 ];
+
+const CELL_SIZE = 40; // px — tamanho de cada célula
+const GAP = 2; // px — gap entre células
 
 export default function PlaceShips() {
   const { gameId } = useParams();
@@ -24,12 +27,10 @@ export default function PlaceShips() {
 
   const allPlaced = currentShip >= SHIPS.length;
 
-  // Connect and subscribe on mount
   useEffect(() => {
     connect().then(() => subscribeToGame(gameId));
   }, [connect, subscribeToGame, gameId]);
 
-  // Navigate to game when phase changes to IN_PROGRESS
   useEffect(() => {
     if (gameState?.phase === 'IN_PROGRESS') {
       navigate(`/game/${gameId}`);
@@ -67,19 +68,38 @@ export default function PlaceShips() {
     if (!cells || isOccupied(cells)) return;
 
     placeShip(gameId, ship.type, row, col, orientation);
-    setPlaced([...placed, { type: ship.type, cells }]);
+    setPlaced([...placed, { type: ship.type, cells, orientation, row, col, size: ship.size, img: ship.img }]);
     setCurrentShip(currentShip + 1);
     setHoverCells([]);
   };
 
   const cellColor = (row, col) => {
-    if (placed.some(p => p.cells.some(c => c.row === row && c.col === col))) {
-      return 'bg-emerald-500';
-    }
     if (hoverCells.some(c => c.row === row && c.col === col)) {
       return 'bg-emerald-300/50';
     }
     return 'bg-blue-900 hover:bg-blue-700';
+  };
+
+  const getShipStyle = (ship) => {
+    const cellTotal = CELL_SIZE + GAP;
+    const top = ship.row * cellTotal;
+    const left = ship.col * cellTotal;
+
+    if (ship.orientation === 'HORIZONTAL') {
+      return {
+        top: `${top}px`,
+        left: `${left}px`,
+        width: `${ship.size * cellTotal - GAP}px`,
+        height: `${CELL_SIZE}px`,
+      };
+    } else {
+      return {
+        top: `${top}px`,
+        left: `${left}px`,
+        width: `${CELL_SIZE}px`,
+        height: `${ship.size * cellTotal - GAP}px`,
+      };
+    }
   };
 
   return (
@@ -100,22 +120,42 @@ export default function PlaceShips() {
         )}
       </div>
 
-      <div
-        className="grid grid-cols-10 gap-0.5 mb-4"
-        onMouseLeave={() => setHoverCells([])}
-      >
-        {Array.from({ length: 100 }, (_, i) => {
-          const row = Math.floor(i / 10);
-          const col = i % 10;
-          return (
-            <div
-              key={i}
-              className={`w-8 h-8 sm:w-10 sm:h-10 border border-slate-600 cursor-pointer ${cellColor(row, col)}`}
-              onMouseEnter={() => handleHover(row, col)}
-              onClick={() => handleClick(row, col)}
-            />
-          );
-        })}
+      {/* Grid com navios sobrepostos */}
+      <div className="relative mb-4" onMouseLeave={() => setHoverCells([])}>
+        <div className="grid grid-cols-10" style={{ gap: `${GAP}px` }}>
+          {Array.from({ length: 100 }, (_, i) => {
+            const row = Math.floor(i / 10);
+            const col = i % 10;
+            return (
+              <div
+                key={i}
+                style={{ width: `${CELL_SIZE}px`, height: `${CELL_SIZE}px` }}
+                className={`border border-slate-600 cursor-pointer ${cellColor(row, col)}`}
+                onMouseEnter={() => handleHover(row, col)}
+                onClick={() => handleClick(row, col)}
+              />
+            );
+          })}
+        </div>
+
+        {/* Imagens dos navios posicionados */}
+        {placed.map((ship) => (
+          <img
+            key={ship.type}
+            src={ship.img}
+            alt={ship.type}
+            className="absolute pointer-events-none object-fill"
+            style={{
+              ...getShipStyle(ship),
+              ...(ship.orientation === 'VERTICAL' ? {
+                transform: `rotate(90deg) translateY(-100%)`,
+                transformOrigin: 'top left',
+                width: `${ship.size * (CELL_SIZE + GAP) - GAP}px`,
+                height: `${CELL_SIZE}px`,
+              } : {}),
+            }}
+          />
+        ))}
       </div>
 
       {allPlaced && !ready && (

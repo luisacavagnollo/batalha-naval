@@ -84,6 +84,15 @@ export function useGame(token) {
     setConnected(false);
   }, []);
 
+  const resetGame = useCallback(() => {
+    lastGameState = null;
+    setGameState(null);
+    setRoomCode(null);
+    setError(null);
+    setEmote(null);
+    subscribedGamesRef.current = new Set();
+  }, []);
+
   const subscribeToGame = useCallback((gameId) => {
     if (!sharedClient || subscribedGamesRef.current.has(gameId)) return;
     subscribedGamesRef.current.add(gameId);
@@ -133,7 +142,7 @@ export function useGame(token) {
 
   return {
     gameState, roomCode, error, emote, connected,
-    connect, disconnect, subscribeToGame,
+    connect, disconnect, resetGame, subscribeToGame,
     createRoom, joinRoom, placeShip, shoot, sendEmote,
   };
 }
