@@ -4,22 +4,36 @@ import com.batalha_naval.domain.*;
 import com.batalha_naval.dto.EmoteMessage;
 import com.batalha_naval.dto.GameMessage;
 import com.batalha_naval.dto.GameStateResponse;
+import com.batalha_naval.service.BotService;
 import com.batalha_naval.service.GameService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Controller
+@EnableScheduling
 public class GameController {
 
     private final GameService gameService;
+    private final BotService botService;
     private final SimpMessagingTemplate messaging;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
-    public GameController(GameService gameService, SimpMessagingTemplate messaging) {
+    // Guarda quais games são singleplayer
+    private final Set<String> singlePlayerGames = ConcurrentHashMap.newKeySet();
+
+    public GameController(GameService gameService, BotService botService, SimpMessagingTemplate messaging) {
         this.gameService = gameService;
+        this.botService = botService;
         this.messaging = messaging;
     }
 
@@ -43,6 +57,27 @@ public class GameController {
         }
     }
 
+    @MessageMapping("/game/single-player")
+    public void startSinglePlayer(Principal principal) {
+        String playerId = principal.getName();
+        Game game = gameService.createGame(playerId);
+        game.setPlayer2Id(BotService.BOT_ID);
+        singlePlayerGames.add(game.getId());
+
+        // Bot posiciona navios automaticamente
+        botService.placeShipsRandomly(game);
+
+        // Envia gameId para o front subscrever e depois o gameState
+        messaging.convertAndSendToUser(playerId, "/topic/game/created",
+                Map.of("gameId", game.getId(), "singlePlayer", true));
+
+        // Envia gameState logo após (o front já vai ter subscrito no onConnect via /created handler)
+        scheduler.schedule(() -> {
+            String dest = "/topic/game/" + game.getId();
+            messaging.convertAndSendToUser(playerId, dest, buildResponse(game, playerId));
+        }, 300, TimeUnit.MILLISECONDS);
+    }
+
     @MessageMapping("/game/place-ship")
     public void placeShip(GameMessage msg, Principal principal) {
         String playerId = principal.getName();
@@ -53,6 +88,11 @@ public class GameController {
                 Orientation.valueOf(msg.getOrientation()));
         Game game = gameService.getGame(msg.getGameId());
         sendGameStateToPlayers(game);
+
+        // Se é singleplayer e o jogo acabou de iniciar com turno do bot
+        if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
+            scheduleBotTurn(game);
+        }
     }
 
     @MessageMapping("/game/shoot")
@@ -61,6 +101,11 @@ public class GameController {
         gameService.shoot(msg.getGameId(), playerId, msg.getRow(), msg.getCol());
         Game game = gameService.getGame(msg.getGameId());
         sendGameStateToPlayers(game);
+
+        // Se é singleplayer e agora é o turno do bot, o bot responde
+        if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
+            scheduleBotTurn(game);
+        }
     }
 
     @MessageMapping("/game/emote")
@@ -68,10 +113,55 @@ public class GameController {
         String playerId = principal.getName();
         Game game = gameService.getGame(msg.getGameId());
         String opponentId = game.getOpponentId(playerId);
-        if (opponentId != null) {
+        if (opponentId != null && !opponentId.equals(BotService.BOT_ID)) {
             msg.setFromPlayer(playerId);
             messaging.convertAndSendToUser(opponentId,
                     "/topic/game/" + game.getId() + "/emote", msg);
+        }
+    }
+
+    private boolean isBotTurn(Game game) {
+        return game.getPhase() == GamePhase.IN_PROGRESS
+                && BotService.BOT_ID.equals(game.getCurrentTurnPlayerId());
+    }
+
+    private void scheduleBotTurn(Game game) {
+        scheduler.schedule(() -> executeBotTurn(game), 1, TimeUnit.SECONDS);
+    }
+
+    private void executeBotTurn(Game game) {
+        if (game.getPhase() != GamePhase.IN_PROGRESS) return;
+        if (!BotService.BOT_ID.equals(game.getCurrentTurnPlayerId())) return;
+
+        int[] shot = botService.chooseShot(game.getId());
+        if (shot == null) return;
+
+        ShotOutcome outcome = game.shoot(BotService.BOT_ID, shot[0], shot[1]);
+        if (outcome == null) {
+            // Tiro inválido (célula já atacada), tenta outro
+            executeBotTurn(game);
+            return;
+        }
+
+        // Se acertou, registra para Hunt/Target
+        if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
+            botService.registerHit(game.getId(), shot[0], shot[1]);
+        }
+        if (outcome.getResult() == ShotResult.SUNK) {
+            botService.registerSunk(game.getId(), shot[0], shot[1]);
+        }
+
+        sendGameStateToPlayers(game);
+
+        // Se o bot ainda tem turno (acertou) e o jogo não acabou, joga novamente
+        if (isBotTurn(game)) {
+            scheduleBotTurn(game);
+        }
+
+        // Limpa estado do bot se o jogo acabou
+        if (game.getPhase() == GamePhase.FINISHED) {
+            botService.cleanup(game.getId());
+            singlePlayerGames.remove(game.getId());
         }
     }
 
@@ -81,7 +171,7 @@ public class GameController {
         String p2 = game.getPlayer2Id();
 
         messaging.convertAndSendToUser(p1, dest, buildResponse(game, p1));
-        if (p2 != null) {
+        if (p2 != null && !p2.equals(BotService.BOT_ID)) {
             messaging.convertAndSendToUser(p2, dest, buildResponse(game, p2));
         }
     }

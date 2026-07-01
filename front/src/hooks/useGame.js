@@ -53,7 +53,12 @@ export function useGame(token) {
 
           client.subscribe('/user/topic/game/created', (msg) => {
             const data = JSON.parse(msg.body);
-            notifySubscribers('roomCode', data.gameId);
+            if (data.singlePlayer) {
+              // Singleplayer: subscreve direto sem mostrar código
+              subscribeToGame(data.gameId);
+            } else {
+              notifySubscribers('roomCode', data.gameId);
+            }
           });
 
           client.subscribe('/user/topic/game/error', (msg) => {
@@ -110,6 +115,10 @@ export function useGame(token) {
     sharedClient?.publish({ destination: '/app/game/create', body: '{}' });
   }, []);
 
+  const startSinglePlayer = useCallback(() => {
+    sharedClient?.publish({ destination: '/app/game/single-player', body: '{}' });
+  }, []);
+
   const joinRoom = useCallback((code) => {
     const id = code.toUpperCase();
     subscribeToGame(id);
@@ -143,6 +152,6 @@ export function useGame(token) {
   return {
     gameState, roomCode, error, emote, connected,
     connect, disconnect, resetGame, subscribeToGame,
-    createRoom, joinRoom, placeShip, shoot, sendEmote,
+    createRoom, startSinglePlayer, joinRoom, placeShip, shoot, sendEmote,
   };
 }

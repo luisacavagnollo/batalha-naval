@@ -6,7 +6,7 @@ export default function Lobby() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const [code, setCode] = useState('');
-  const { connect, connected, createRoom, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame } = useGame(token);
+  const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame } = useGame(token);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +26,11 @@ export default function Lobby() {
   const handleCreate = async () => {
     await connect();
     createRoom();
+  };
+
+  const handleSinglePlayer = async () => {
+    await connect();
+    startSinglePlayer();
   };
 
   const handleJoin = async () => {
@@ -66,6 +71,13 @@ export default function Lobby() {
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-900 font-black text-lg tracking-wide hover:from-cyan-400 hover:to-cyan-300 transition-all shadow-lg shadow-cyan-500/25"
               >
                 CRIAR SALA
+              </button>
+
+              <button
+                onClick={handleSinglePlayer}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 text-slate-900 font-black text-lg tracking-wide hover:from-orange-400 hover:to-amber-300 transition-all shadow-lg shadow-orange-500/25"
+              >
+                JOGAR SOLO
               </button>
 
               <div className="flex items-center gap-4 w-full">

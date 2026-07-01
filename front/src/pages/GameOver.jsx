@@ -19,7 +19,7 @@ export default function GameOver() {
         <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-10 flex flex-col items-center">
           {/* Ícone */}
           <div className={`text-7xl mb-6 ${isVictory ? 'animate-bounce' : ''}`}>
-            {isVictory ? '🏆' : '💀'}
+            {isVictory ? ':)' : ':('}
           </div>
 
           {/* Título */}
