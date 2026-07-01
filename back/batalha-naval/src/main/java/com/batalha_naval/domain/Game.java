@@ -10,9 +10,12 @@ public class Game {
     private GamePhase phase = GamePhase.PLACING_SHIPS;
     private String winnerId;
     private ShotOutcome lastShotOutcome;
+    private String player1Skin; // "padrao" ou "pirate"
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public String getPlayer1Skin() { return player1Skin; }
+    public void setPlayer1Skin(String player1Skin) { this.player1Skin = player1Skin; }
     public String getPlayer1Id() { return player1Id; }
     public void setPlayer1Id(String player1Id) { this.player1Id = player1Id; }
     public String getPlayer2Id() { return player2Id; }

@@ -12,10 +12,11 @@ public class GameStateResponse {
     private String winnerId;
     private String lastShotResult;
     private String sunkShipType;
+    private String mySkin;
 
     public GameStateResponse() {}
 
-    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType) {
+    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType, String mySkin) {
         this.gameId = gameId;
         this.phase = phase;
         this.currentTurn = currentTurn;
@@ -25,6 +26,7 @@ public class GameStateResponse {
         this.winnerId = winnerId;
         this.lastShotResult = lastShotResult;
         this.sunkShipType = sunkShipType;
+        this.mySkin = mySkin;
     }
 
     public String getGameId() { return gameId; }
@@ -45,4 +47,6 @@ public class GameStateResponse {
     public void setLastShotResult(String lastShotResult) { this.lastShotResult = lastShotResult; }
     public String getSunkShipType() { return sunkShipType; }
     public void setSunkShipType(String sunkShipType) { this.sunkShipType = sunkShipType; }
+    public String getMySkin() { return mySkin; }
+    public void setMySkin(String mySkin) { this.mySkin = mySkin; }
 }

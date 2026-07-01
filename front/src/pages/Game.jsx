@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 
@@ -12,12 +12,21 @@ const CELL_COLORS = {
   MISS: 'bg-slate-500',
 };
 
-const SHIP_IMAGES = {
-  5: '/ships/padrao/carrier.png',
-  4: '/ships/padrao/battleship.png',
-  '3a': '/ships/padrao/cruiser.png',
-  '3b': '/ships/padrao/submarine.png',
-  2: '/ships/padrao/destroyer.png',
+const SKINS = {
+  padrao: [
+    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao/carrier.png' },
+    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao/battleship.png' },
+    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao/cruiser.png' },
+    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao/submarine.png' },
+    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
+  ],
+  pirate: [
+    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/pirate/carrier_pirate.png' },
+    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/pirate/battleship_pirate.png' },
+    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/pirate/cruiser_pirate.png' },
+    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pirate/submarine_pirate.png' },
+    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate/destroyer_pirate.png' },
+  ],
 };
 
 const EMOTES = ['👍', '😂', '😱', '😢', '💀', '🫡'];
@@ -57,25 +66,74 @@ function detectShips(board) {
   return ships;
 }
 
-function assignImages(ships) {
+function isShipSunk(board, ship) {
+  for (let i = 0; i < ship.size; i++) {
+    const r = ship.orientation === 'VERTICAL' ? ship.row + i : ship.row;
+    const c = ship.orientation === 'HORIZONTAL' ? ship.col + i : ship.col;
+    if (board[r][c] !== 'HIT') return false;
+  }
+  return true;
+}
+
+function assignShipData(ships, board, skinShips) {
   let threeCount = 0;
   return ships
     .filter(s => s.size > 1)
     .map(ship => {
-      let img;
-      if (ship.size === 3) {
-        img = threeCount === 0 ? SHIP_IMAGES['3a'] : SHIP_IMAGES['3b'];
+      let imgData;
+      if (ship.size === 5) imgData = skinShips[0];
+      else if (ship.size === 4) imgData = skinShips[1];
+      else if (ship.size === 3) {
+        imgData = threeCount === 0 ? skinShips[2] : skinShips[3];
         threeCount++;
-      } else {
-        img = SHIP_IMAGES[ship.size];
-      }
-      return { ...ship, img };
+      } else if (ship.size === 2) imgData = skinShips[4];
+      return { ...ship, img: imgData?.img, sunk: isShipSunk(board, ship) };
     });
 }
 
-function MyBoard({ board }) {
+function getSunkStatus(board, shipList) {
+  if (!board) return shipList.map(s => ({ ...s, sunk: false }));
+  const detected = detectShips(board);
+  const sunkSizes = [];
+  for (const ship of detected) {
+    if (ship.size > 1 && isShipSunk(board, ship)) {
+      sunkSizes.push(ship.size);
+    }
+  }
+  const usedSizes = [];
+  return shipList.map(s => {
+    const idx = sunkSizes.findIndex((size, i) => size === s.size && !usedSizes.includes(i));
+    if (idx !== -1) {
+      usedSizes.push(idx);
+      return { ...s, sunk: true };
+    }
+    return { ...s, sunk: false };
+  });
+}
+
+function ShipList({ ships, title, align }) {
+  return (
+    <div className={`hidden xl:flex flex-col gap-3 w-44 ${align === 'right' ? 'items-end' : 'items-start'}`}>
+      <h3 className="text-slate-500 text-xs font-bold tracking-wider uppercase mb-2">{title}</h3>
+      {ships.map((ship) => (
+        <div key={ship.type} className={`flex items-center gap-2 transition-opacity duration-500 ${ship.sunk ? 'opacity-25' : 'opacity-100'}`}>
+          <img
+            src={ship.img}
+            alt={ship.name}
+            className={`h-8 object-contain ${ship.sunk ? 'grayscale' : ''}`}
+            style={{ width: `${ship.size * 24}px` }}
+          />
+          {ship.sunk && <span className="text-red-400 text-xs font-bold">✕</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MyBoard({ board, skinShips }) {
   if (!board) return null;
-  const ships = assignImages(detectShips(board));
+  const detected = detectShips(board);
+  const ships = assignShipData(detected, board, skinShips);
 
   return (
     <div className="relative">
@@ -93,6 +151,7 @@ function MyBoard({ board }) {
       </div>
 
       {ships.map((ship, idx) => {
+        if (!ship.img) return null;
         const cellTotal = CELL_SIZE + GAP;
         const top = ship.row * cellTotal;
         const left = ship.col * cellTotal;
@@ -112,7 +171,7 @@ function MyBoard({ board }) {
             key={idx}
             src={ship.img}
             alt={`ship-${ship.size}`}
-            className="absolute pointer-events-none object-fill opacity-90"
+            className={`absolute pointer-events-none object-fill transition-opacity duration-500 ${ship.sunk ? 'opacity-25 grayscale' : 'opacity-90'}`}
             style={style}
           />
         );
@@ -149,6 +208,7 @@ export default function Game() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const { connect, subscribeToGame, gameState, shoot, sendEmote, emote } = useGame(token);
+  const [sunkOpponentShips, setSunkOpponentShips] = useState([]);
 
   useEffect(() => {
     connect().then(() => subscribeToGame(gameId));
@@ -157,6 +217,14 @@ export default function Game() {
   useEffect(() => {
     if (gameState?.phase === 'FINISHED') {
       navigate(`/game-over?winner=${gameState.winnerId}`);
+    }
+    if (gameState?.sunkShipType && gameState?.lastShotResult === 'SUNK') {
+      setSunkOpponentShips(prev => {
+        if (!prev.includes(gameState.sunkShipType)) {
+          return [...prev, gameState.sunkShipType];
+        }
+        return prev;
+      });
     }
   }, [gameState, navigate]);
 
@@ -167,22 +235,31 @@ export default function Game() {
     shoot(gameId, row, col);
   };
 
+  // Determinar skins baseado no mySkin do backend
+  const mySkin = gameState?.mySkin || 'padrao';
+  const opponentSkin = mySkin === 'padrao' ? 'pirate' : 'padrao';
+  const mySkinShips = SKINS[mySkin];
+  const opponentSkinShips = SKINS[opponentSkin];
+
+  const myShipsStatus = getSunkStatus(gameState?.myBoard, mySkinShips);
+  const opponentShipsStatus = opponentSkinShips.map(s => ({
+    ...s,
+    sunk: sunkOpponentShips.includes(s.type),
+  }));
+
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
-      {/* Header */}
       <header className="w-full px-8 py-4 border-b border-slate-700 flex items-center justify-between">
         <h1 className="text-2xl font-black text-white tracking-wide">BATTLESHIP</h1>
         <span className="text-slate-400 text-sm">{username}</span>
       </header>
 
-      {/* Indicador de turno */}
       <div className="w-full flex justify-center py-4">
         <div className={`px-8 py-3 rounded-xl text-lg font-bold tracking-wider ${gameState?.myTurn ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-900 animate-pulse' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
           {gameState?.myTurn ? 'SUA VEZ — ATAQUE!' : 'AGUARDANDO OPONENTE...'}
         </div>
       </div>
 
-      {/* Resultado do último tiro */}
       {gameState?.lastShotResult && (
         <div className="w-full flex justify-center pb-2">
           <span className="text-yellow-400 text-sm font-semibold">
@@ -192,28 +269,31 @@ export default function Game() {
         </div>
       )}
 
-      {/* Tabuleiros */}
       <div className="flex-1 flex items-center justify-center px-4 pb-20">
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
-            <h2 className="text-center text-slate-400 text-xs font-bold tracking-wider mb-3 uppercase">Meu Tabuleiro</h2>
-            <MyBoard board={gameState?.myBoard} />
+        <div className="flex items-start gap-6">
+          <ShipList ships={myShipsStatus} title="Minha Frota" align="left" />
+
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
+            <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+              <h2 className="text-center text-slate-400 text-xs font-bold tracking-wider mb-3 uppercase">Meu Tabuleiro</h2>
+              <MyBoard board={gameState?.myBoard} skinShips={mySkinShips} />
+            </div>
+            <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+              <h2 className="text-center text-slate-400 text-xs font-bold tracking-wider mb-3 uppercase">Oponente</h2>
+              <OpponentBoard board={gameState?.opponentBoard} onClick={handleShoot} active={gameState?.myTurn} />
+            </div>
           </div>
-          <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
-            <h2 className="text-center text-slate-400 text-xs font-bold tracking-wider mb-3 uppercase">Oponente</h2>
-            <OpponentBoard board={gameState?.opponentBoard} onClick={handleShoot} active={gameState?.myTurn} />
-          </div>
+
+          <ShipList ships={opponentShipsStatus} title="Frota Inimiga" align="right" />
         </div>
       </div>
 
-      {/* Emote recebido */}
       {emote && (
         <div className="fixed top-24 right-8 bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl text-4xl animate-bounce shadow-xl">
           {emote.emote}
         </div>
       )}
 
-      {/* Barra de emotes */}
       <div className="fixed bottom-0 left-0 right-0 flex justify-center py-4 bg-slate-900/80 backdrop-blur-sm border-t border-slate-700">
         <div className="flex gap-3 bg-slate-800 px-6 py-3 rounded-xl border border-slate-700">
           {EMOTES.map(e => (

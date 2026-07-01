@@ -183,6 +183,11 @@ public class GameController {
         String lastResult = outcome != null ? outcome.getResult().name() : null;
         String sunkType = outcome != null && outcome.getSunkShipType() != null
                 ? outcome.getSunkShipType().name() : null;
+
+        // player1 usa player1Skin, player2 usa a outra
+        String p1Skin = game.getPlayer1Skin() != null ? game.getPlayer1Skin() : "padrao";
+        String mySkin = playerId.equals(game.getPlayer1Id()) ? p1Skin : (p1Skin.equals("padrao") ? "pirate" : "padrao");
+
         return new GameStateResponse(
                 game.getId(),
                 game.getPhase().name(),
@@ -192,6 +197,7 @@ public class GameController {
                 playerId.equals(game.getCurrentTurnPlayerId()),
                 game.getWinnerId(),
                 lastResult,
-                sunkType);
+                sunkType,
+                mySkin);
     }
 }

@@ -20,6 +20,7 @@ public class GameService {
         String code = generateCode();
         game.setId(code);
         game.setPlayer1Id(playerId);
+        game.setPlayer1Skin(random.nextBoolean() ? "padrao" : "pirate");
         games.put(code, game);
         codeToGameId.put(code, code);
         return game;

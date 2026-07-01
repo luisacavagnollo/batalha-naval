@@ -2,12 +2,20 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 
-const SHIPS = [
+const SHIPS_PADRAO = [
   { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao/carrier.png' },
   { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao/battleship.png' },
   { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao/cruiser.png' },
   { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao/submarine.png' },
   { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
+];
+
+const SHIPS_PIRATE = [
+  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/pirate/carrier_pirate.png' },
+  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/pirate/battleship_pirate.png' },
+  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/pirate/cruiser_pirate.png' },
+  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pirate/submarine_pirate.png' },
+  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate/destroyer_pirate.png' },
 ];
 
 const CELL_SIZE = 40;
@@ -26,6 +34,8 @@ export default function PlaceShips() {
   const [hoverCells, setHoverCells] = useState([]);
   const [ready, setReady] = useState(false);
 
+  const mySkin = gameState?.mySkin || 'padrao';
+  const SHIPS = mySkin === 'pirate' ? SHIPS_PIRATE : SHIPS_PADRAO;
   const allPlaced = currentShip >= SHIPS.length;
 
   useEffect(() => {
