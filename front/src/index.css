@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+@keyframes swim-right {
+  from { left: -10%; }
+  to { left: 110%; }
+}
+
+@keyframes swim-left {
+  from { left: 110%; }
+  to { left: -10%; }
+}

@@ -3,3 +3,5 @@
 *.iml
 *.iws
 *.ipr
+dist/
+node_modules/

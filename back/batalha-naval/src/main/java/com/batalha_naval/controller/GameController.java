@@ -120,6 +120,32 @@ public class GameController {
         }
     }
 
+    @MessageMapping("/game/rematch")
+    public void rematch(GameMessage msg, Principal principal) {
+        String playerId = principal.getName();
+        try {
+            Game oldGame = gameService.getGame(msg.getGameId());
+            // Apenas jogadores da partida podem pedir rematch
+            if (!playerId.equals(oldGame.getPlayer1Id()) && !playerId.equals(oldGame.getPlayer2Id())) {
+                messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                        Map.of("message", "Você não faz parte desta partida"));
+                return;
+            }
+            Game newGame = gameService.rematch(msg.getGameId());
+            // Notifica ambos os jogadores sobre o novo jogo
+            String p1 = newGame.getPlayer1Id();
+            String p2 = newGame.getPlayer2Id();
+            Map<String, Object> payload = Map.of("gameId", newGame.getId(), "rematch", true);
+            messaging.convertAndSendToUser(p1, "/topic/game/created", payload);
+            if (p2 != null && !p2.equals(BotService.BOT_ID)) {
+                messaging.convertAndSendToUser(p2, "/topic/game/created", payload);
+            }
+        } catch (Exception e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", e.getMessage()));
+        }
+    }
+
     private boolean isBotTurn(Game game) {
         return game.getPhase() == GamePhase.IN_PROGRESS
                 && BotService.BOT_ID.equals(game.getCurrentTurnPlayerId());
@@ -188,12 +214,17 @@ public class GameController {
         String p1Skin = game.getPlayer1Skin() != null ? game.getPlayer1Skin() : "padrao";
         String mySkin = playerId.equals(game.getPlayer1Id()) ? p1Skin : (p1Skin.equals("padrao") ? "pirate" : "padrao");
 
+        // Revela tabuleiro do oponente quando o jogo termina
+        CellState[][] opponentView = game.getPhase() == GamePhase.FINISHED
+                ? opponentBoard.getGridForOwner()
+                : opponentBoard.getGridForOpponent();
+
         return new GameStateResponse(
                 game.getId(),
                 game.getPhase().name(),
                 game.getCurrentTurnPlayerId(),
                 myBoard.getGridForOwner(),
-                opponentBoard.getGridForOpponent(),
+                opponentView,
                 playerId.equals(game.getCurrentTurnPlayerId()),
                 game.getWinnerId(),
                 lastResult,

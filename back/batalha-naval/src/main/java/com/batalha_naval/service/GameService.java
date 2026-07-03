@@ -75,6 +75,22 @@ public class GameService {
         return scores.getOrDefault(playerId, 0);
     }
 
+    public Game rematch(String oldGameId) {
+        Game oldGame = getGame(oldGameId);
+        if (oldGame.getPhase() != GamePhase.FINISHED) {
+            throw new IllegalStateException("O jogo ainda não terminou");
+        }
+        Game newGame = new Game();
+        String code = generateCode();
+        newGame.setId(code);
+        newGame.setPlayer1Id(oldGame.getPlayer1Id());
+        newGame.setPlayer2Id(oldGame.getPlayer2Id());
+        newGame.setPlayer1Skin(random.nextBoolean() ? "padrao" : "pirate");
+        games.put(code, newGame);
+        codeToGameId.put(code, code);
+        return newGame;
+    }
+
     private String generateCode() {
         String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         String code;

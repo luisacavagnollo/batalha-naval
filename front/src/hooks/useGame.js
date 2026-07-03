@@ -7,10 +7,12 @@ const WS_URL = import.meta.env.VITE_WS_URL;
 let sharedClient = null;
 let sharedConnectedPromise = null;
 let lastGameState = null;
+let lastRematchGameId = null;
 const subscribers = new Set();
 
 function notifySubscribers(topic, data) {
   if (topic === 'gameState') lastGameState = data;
+  if (topic === 'rematch') lastRematchGameId = data;
   subscribers.forEach(fn => fn(topic, data));
 }
 
@@ -20,6 +22,7 @@ export function useGame(token) {
   const [error, setError] = useState(null);
   const [emote, setEmote] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [rematchGameId, setRematchGameId] = useState(lastRematchGameId);
   const subscribedGamesRef = useRef(new Set());
 
   // Registrar listener local
@@ -28,6 +31,7 @@ export function useGame(token) {
       if (topic === 'gameState') setGameState(data);
       if (topic === 'roomCode') setRoomCode(data);
       if (topic === 'error') setError(data);
+      if (topic === 'rematch') setRematchGameId(data);
       if (topic === 'emote') {
         setEmote(data);
         setTimeout(() => setEmote(null), 3000);
@@ -53,7 +57,11 @@ export function useGame(token) {
 
           client.subscribe('/user/topic/game/created', (msg) => {
             const data = JSON.parse(msg.body);
-            if (data.singlePlayer) {
+            if (data.rematch) {
+              // Rematch: subscreve ao novo jogo e notifica
+              subscribeToGame(data.gameId);
+              notifySubscribers('rematch', data.gameId);
+            } else if (data.singlePlayer) {
               // Singleplayer: subscreve direto sem mostrar código
               subscribeToGame(data.gameId);
             } else {
@@ -91,10 +99,12 @@ export function useGame(token) {
 
   const resetGame = useCallback(() => {
     lastGameState = null;
+    lastRematchGameId = null;
     setGameState(null);
     setRoomCode(null);
     setError(null);
     setEmote(null);
+    setRematchGameId(null);
     subscribedGamesRef.current = new Set();
   }, []);
 
@@ -149,9 +159,18 @@ export function useGame(token) {
     });
   }, []);
 
+  const requestRematch = useCallback((gameId) => {
+    lastRematchGameId = null;
+    setRematchGameId(null);
+    sharedClient?.publish({
+      destination: '/app/game/rematch',
+      body: JSON.stringify({ gameId }),
+    });
+  }, []);
+
   return {
-    gameState, roomCode, error, emote, connected,
+    gameState, roomCode, error, emote, connected, rematchGameId,
     connect, disconnect, resetGame, subscribeToGame,
-    createRoom, startSinglePlayer, joinRoom, placeShip, shoot, sendEmote,
+    createRoom, startSinglePlayer, joinRoom, placeShip, shoot, sendEmote, requestRematch,
   };
 }
