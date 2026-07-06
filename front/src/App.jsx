@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { GameProvider } from './context/GameContext';
 import Login from './pages/Login';
 import Lobby from './pages/Lobby';
 import PlaceShips from './pages/PlaceShips';
@@ -28,14 +29,16 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/lobby" element={<PrivateRoute><Lobby /></PrivateRoute>} />
-        <Route path="/place-ships/:gameId" element={<PrivateRoute><PlaceShips /></PrivateRoute>} />
-        <Route path="/game/:gameId" element={<PrivateRoute><Game /></PrivateRoute>} />
-        <Route path="/game-over" element={<PrivateRoute><GameOver /></PrivateRoute>} />
-      </Routes>
-    </BrowserRouter>
+    <GameProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/lobby" element={<PrivateRoute><Lobby /></PrivateRoute>} />
+          <Route path="/place-ships/:gameId" element={<PrivateRoute><PlaceShips /></PrivateRoute>} />
+          <Route path="/game/:gameId" element={<PrivateRoute><Game /></PrivateRoute>} />
+          <Route path="/game-over" element={<PrivateRoute><GameOver /></PrivateRoute>} />
+        </Routes>
+      </BrowserRouter>
+    </GameProvider>
   );
 }
