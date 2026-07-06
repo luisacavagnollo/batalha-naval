@@ -1,6 +1,7 @@
 package com.batalha_naval.dto;
 
 import com.batalha_naval.domain.CellState;
+import java.util.List;
 
 public class GameStateResponse {
     private String gameId;
@@ -13,10 +14,11 @@ public class GameStateResponse {
     private String lastShotResult;
     private String sunkShipType;
     private String mySkin;
+    private List<int[]> sunkShipCells;
 
     public GameStateResponse() {}
 
-    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType, String mySkin) {
+    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType, String mySkin, List<int[]> sunkShipCells) {
         this.gameId = gameId;
         this.phase = phase;
         this.currentTurn = currentTurn;
@@ -27,6 +29,7 @@ public class GameStateResponse {
         this.lastShotResult = lastShotResult;
         this.sunkShipType = sunkShipType;
         this.mySkin = mySkin;
+        this.sunkShipCells = sunkShipCells;
     }
 
     public String getGameId() { return gameId; }
@@ -49,4 +52,6 @@ public class GameStateResponse {
     public void setSunkShipType(String sunkShipType) { this.sunkShipType = sunkShipType; }
     public String getMySkin() { return mySkin; }
     public void setMySkin(String mySkin) { this.mySkin = mySkin; }
+    public List<int[]> getSunkShipCells() { return sunkShipCells; }
+    public void setSunkShipCells(List<int[]> sunkShipCells) { this.sunkShipCells = sunkShipCells; }
 }

@@ -81,17 +81,27 @@ public class GameController {
     @MessageMapping("/game/place-ship")
     public void placeShip(GameMessage msg, Principal principal) {
         String playerId = principal.getName();
-        gameService.placeShip(
-                msg.getGameId(), playerId,
-                ShipType.valueOf(msg.getShipType()),
-                msg.getRow(), msg.getCol(),
-                Orientation.valueOf(msg.getOrientation()));
-        Game game = gameService.getGame(msg.getGameId());
-        sendGameStateToPlayers(game);
+        try {
+            if (msg.getShipType() == null || msg.getOrientation() == null || msg.getGameId() == null) {
+                messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                        Map.of("message", "Dados incompletos para posicionar navio"));
+                return;
+            }
+            gameService.placeShip(
+                    msg.getGameId(), playerId,
+                    ShipType.valueOf(msg.getShipType()),
+                    msg.getRow(), msg.getCol(),
+                    Orientation.valueOf(msg.getOrientation()));
+            Game game = gameService.getGame(msg.getGameId());
+            sendGameStateToPlayers(game);
 
-        // Se é singleplayer e o jogo acabou de iniciar com turno do bot
-        if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
-            scheduleBotTurn(game);
+            // Se é singleplayer e o jogo acabou de iniciar com turno do bot
+            if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
+                scheduleBotTurn(game);
+            }
+        } catch (Exception e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", e.getMessage() != null ? e.getMessage() : "Erro ao posicionar navio"));
         }
     }
 
@@ -117,6 +127,24 @@ public class GameController {
             msg.setFromPlayer(playerId);
             messaging.convertAndSendToUser(opponentId,
                     "/topic/game/" + game.getId() + "/emote", msg);
+        }
+    }
+
+    @MessageMapping("/game/surrender")
+    public void surrender(GameMessage msg, Principal principal) {
+        String playerId = principal.getName();
+        try {
+            Game game = gameService.surrender(msg.getGameId(), playerId);
+            sendGameStateToPlayers(game);
+
+            // Limpa singleplayer se aplicável
+            if (singlePlayerGames.contains(game.getId())) {
+                botService.cleanup(game.getId());
+                singlePlayerGames.remove(game.getId());
+            }
+        } catch (Exception e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", e.getMessage()));
         }
     }
 
@@ -209,6 +237,7 @@ public class GameController {
         String lastResult = outcome != null ? outcome.getResult().name() : null;
         String sunkType = outcome != null && outcome.getSunkShipType() != null
                 ? outcome.getSunkShipType().name() : null;
+        java.util.List<int[]> sunkCells = outcome != null ? outcome.getSunkShipCells() : null;
 
         // player1 usa player1Skin, player2 usa a outra
         String p1Skin = game.getPlayer1Skin() != null ? game.getPlayer1Skin() : "padrao";
@@ -229,6 +258,7 @@ public class GameController {
                 game.getWinnerId(),
                 lastResult,
                 sunkType,
-                mySkin);
+                mySkin,
+                sunkCells);
     }
 }

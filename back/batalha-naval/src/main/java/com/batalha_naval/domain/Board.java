@@ -55,7 +55,7 @@ public class Board {
         if (hitShip != null) {
             hitShip.setHits(hitShip.getHits() + 1);
             if (hitShip.isSunk()) {
-                return new ShotOutcome(ShotResult.SUNK, hitShip.getType());
+                return new ShotOutcome(ShotResult.SUNK, hitShip.getType(), hitShip.getOccupiedCells());
             }
             return new ShotOutcome(ShotResult.HIT, null);
         }

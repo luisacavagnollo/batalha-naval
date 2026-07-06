@@ -11,6 +11,7 @@ public class Game {
     private String winnerId;
     private ShotOutcome lastShotOutcome;
     private String player1Skin; // "padrao" ou "pirate"
+    private long lastActivity = System.currentTimeMillis();
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -32,6 +33,8 @@ public class Game {
     public void setWinnerId(String winnerId) { this.winnerId = winnerId; }
     public ShotOutcome getLastShotOutcome() { return lastShotOutcome; }
     public void setLastShotOutcome(ShotOutcome lastShotOutcome) { this.lastShotOutcome = lastShotOutcome; }
+    public long getLastActivity() { return lastActivity; }
+    public void touchActivity() { this.lastActivity = System.currentTimeMillis(); }
 
     public boolean placeShip(String playerId, ShipType type, int row, int col, Orientation orientation) {
         if (phase != GamePhase.PLACING_SHIPS) return false;

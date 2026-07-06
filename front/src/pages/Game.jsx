@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
+import ConnectionStatus from '../components/ConnectionStatus';
 
 const CELL_SIZE = 36;
 const CELL_SIZE_MOBILE = 28;
@@ -23,25 +24,26 @@ function useResponsiveCellSize() {
 }
 
 const OCEAN_COLORS = [
-  'from-[#0f2744] to-[#133254]',
-  'from-[#112d4e] to-[#0d2340]',
-  'from-[#0e2a48] to-[#122f50]',
+  'from-[#0a1a2e] to-[#0f2640]',
+  'from-[#081422] to-[#0c1e35]',
+  'from-[#0b1828] to-[#0e2238]',
 ];
 
-function getOceanClass(row, col, cell) {
-  if (cell === 'HIT') return 'bg-red-500/80';
-  if (cell === 'MISS') return 'bg-slate-600/70';
+function getOceanClass(row, col, cell, isSunkCell = false) {
+  if (cell === 'HIT' && isSunkCell) return 'bg-[#8b1a1a]/50';
+  if (cell === 'HIT') return 'bg-[#c45a2a]/35';
+  if (cell === 'MISS') return 'bg-[#5a5048]/60';
   const variant = (row + col) % 3;
   return `bg-gradient-to-br ${OCEAN_COLORS[variant]}`;
 }
 
 const SKINS = {
   padrao: [
-    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao/carrier.png' },
-    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao/battleship.png' },
-    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao/cruiser.png' },
-    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao/submarine.png' },
-    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
+    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao_antigo/carrier_antigo.png' },
+    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao_antigo/battleship_antigo.png' },
+    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao_antigo/cruiser_antigo.png' },
+    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao_antigo/submarine_antigo.png' },
+    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao_antigo/destroyer_antigo.png' },
   ],
   pirate: [
     { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/pirate/carrier_pirate.png' },
@@ -58,32 +60,61 @@ function detectShips(board) {
   if (!board) return [];
   const visited = Array.from({ length: 10 }, () => Array(10).fill(false));
   const ships = [];
+  // Tamanhos válidos de navios no jogo
+  const validSizes = [5, 4, 3, 3, 2];
+  const remainingSizes = [...validSizes];
 
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 10; c++) {
       if (visited[r][c]) continue;
       if (board[r][c] !== 'SHIP' && board[r][c] !== 'HIT') continue;
 
+      // Tentar expandir horizontalmente
       let hLen = 0;
       while (c + hLen < 10 && (board[r][c + hLen] === 'SHIP' || board[r][c + hLen] === 'HIT') && !visited[r][c + hLen]) {
         hLen++;
       }
 
+      // Tentar expandir verticalmente
       let vLen = 0;
       while (r + vLen < 10 && (board[r + vLen][c] === 'SHIP' || board[r + vLen][c] === 'HIT') && !visited[r + vLen][c]) {
         vLen++;
       }
 
-      if (hLen >= vLen && hLen > 1) {
-        for (let i = 0; i < hLen; i++) visited[r][c + i] = true;
-        ships.push({ row: r, col: c, size: hLen, orientation: 'HORIZONTAL' });
-      } else if (vLen > 1) {
-        for (let i = 0; i < vLen; i++) visited[r + i][c] = true;
-        ships.push({ row: r, col: c, size: vLen, orientation: 'VERTICAL' });
+      let chosenLen, orientation;
+      if (hLen >= 2 && hLen >= vLen) {
+        chosenLen = hLen;
+        orientation = 'HORIZONTAL';
+      } else if (vLen >= 2) {
+        chosenLen = vLen;
+        orientation = 'VERTICAL';
       } else {
         visited[r][c] = true;
         ships.push({ row: r, col: c, size: 1, orientation: 'HORIZONTAL' });
+        continue;
       }
+
+      // Se o comprimento detectado é maior que o maior tamanho restante,
+      // significa que dois navios estão adjacentes. Usar o melhor match.
+      let bestSize = chosenLen;
+      const sizeIdx = remainingSizes.indexOf(chosenLen);
+      if (sizeIdx === -1) {
+        // Tamanho exato não disponível — encontrar o maior tamanho restante que cabe
+        const sorted = [...remainingSizes].sort((a, b) => b - a);
+        bestSize = sorted.find(s => s <= chosenLen) || chosenLen;
+      }
+
+      // Marcar células e registrar navio com bestSize
+      if (orientation === 'HORIZONTAL') {
+        for (let i = 0; i < bestSize; i++) visited[r][c + i] = true;
+      } else {
+        for (let i = 0; i < bestSize; i++) visited[r + i][c] = true;
+      }
+      ships.push({ row: r, col: c, size: bestSize, orientation });
+
+      // Remover o tamanho usado da lista
+      const removeIdx = remainingSizes.indexOf(bestSize);
+      if (removeIdx !== -1) remainingSizes.splice(removeIdx, 1);
     }
   }
   return ships;
@@ -101,7 +132,7 @@ function isShipSunk(board, ship) {
 function assignShipData(ships, board, skinShips) {
   let threeCount = 0;
   return ships
-    .filter(s => s.size > 1)
+    .filter(s => s.size >= 2)
     .map(ship => {
       let imgData;
       if (ship.size === 5) imgData = skinShips[0];
@@ -148,38 +179,35 @@ function ShipList({ ships, title, align, mobile }) {
   if (mobile) {
     return (
       <div className="flex xl:hidden flex-col gap-2 items-center w-full">
-        <h3 className="text-slate-500 text-xs font-medium tracking-wider uppercase mb-1">{title}</h3>
-        <div
-          className="flex flex-wrap gap-2 justify-center rounded-xl p-4 bg-no-repeat bg-contain bg-center"
-          style={{ backgroundImage: `url('/textures/deck.png')`, minHeight: '120px', alignItems: 'center' }}
-        >
-          {ships.map((ship) => (
-            <div
-              key={ship.type}
-              className={`transition-opacity duration-500 ${ship.sunk ? 'opacity-25' : 'opacity-100'}`}
-              style={{ display: 'flex', alignItems: 'center' }}
-            >
-              <img
-                src={ship.img}
-                alt={ship.name}
-                className={`object-fill ${ship.sunk ? 'grayscale' : ''}`}
-                style={{ width: `${ship.size * fleetCell}px`, height: `${fleetHeight}px` }}
-              />
-              {ship.sunk && <span className="text-red-400 text-sm font-bold ml-1">✕</span>}
-            </div>
-          ))}
+        <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-4 w-full">
+          <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-3 font-[MedievalSharp] text-center">{title}</h3>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {ships.map((ship) => (
+              <div
+                key={ship.type}
+                className={`transition-opacity duration-500 ${ship.sunk ? 'opacity-25' : 'opacity-100'}`}
+                style={{ display: 'flex', alignItems: 'center' }}
+              >
+                <img
+                  src={ship.img}
+                  alt={ship.name}
+                  className={`object-fill ${ship.sunk ? 'grayscale' : ''}`}
+                  style={{ width: `${ship.size * fleetCell}px`, height: `${fleetHeight}px` }}
+                />
+                {ship.sunk && <span className="text-[#8b1a1a] text-sm font-bold ml-1">✕</span>}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`hidden xl:flex flex-col gap-4 ${align === 'right' ? 'items-end' : 'items-start'}`} style={{ width: `${maxWidth + 32}px` }}>
-      <h3 className="text-slate-500 text-xs font-medium tracking-wider uppercase">{title}</h3>
-      <div
-        className="rounded-xl p-6 flex flex-col gap-4 bg-no-repeat bg-contain bg-center items-center"
-        style={{ backgroundImage: `url('/textures/deck.png')`, minHeight: '320px', display: 'flex', justifyContent: 'center' }}
-      >
+    <div className={`hidden xl:flex flex-col gap-4 justify-center ${align === 'right' ? 'items-end' : 'items-start'}`} style={{ width: `${maxWidth + 32}px`, alignSelf: 'stretch' }}>
+      <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-4 flex flex-col gap-4 w-full">
+        <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase font-[MedievalSharp]">{title}</h3>
+        <div className="flex flex-col gap-4 items-center">
         {ships.map((ship) => (
           <div
             key={ship.type}
@@ -192,9 +220,10 @@ function ShipList({ ships, title, align, mobile }) {
               className={`object-fill ${ship.sunk ? 'grayscale' : ''}`}
               style={{ width: `${ship.size * fleetCell}px`, height: `${fleetHeight}px` }}
             />
-            {ship.sunk && <span className="text-red-400 text-sm font-bold ml-2">✕</span>}
+            {ship.sunk && <span className="text-[#8b1a1a] text-sm font-bold ml-2">✕</span>}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );
@@ -205,9 +234,21 @@ function MyBoard({ board, skinShips, cellSize }) {
   const detected = detectShips(board);
   const ships = assignShipData(detected, board, skinShips);
 
+  // Computar células de navios afundados
+  const sunkCells = new Set();
+  for (const ship of ships) {
+    if (ship.sunk) {
+      for (let i = 0; i < ship.size; i++) {
+        const r = ship.orientation === 'VERTICAL' ? ship.row + i : ship.row;
+        const c = ship.orientation === 'HORIZONTAL' ? ship.col + i : ship.col;
+        sunkCells.add(`${r},${c}`);
+      }
+    }
+  }
+
   return (
-    <div className="relative overflow-hidden rounded-lg">
-      {/* Sombras de peixes no fundo */}
+    <div className="relative overflow-hidden rounded-md">
+      {/* Peixes animados no fundo */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <img src="/fish/right/fish1.png" alt="" className="absolute top-[12%] h-6 opacity-[0.18] animate-[swim-right_14s_linear_infinite]" />
         <img src="/fish/left/fish2.png" alt="" className="absolute top-[35%] h-9 opacity-[0.14] animate-[swim-left_20s_linear_infinite] [animation-delay:4s]" />
@@ -220,14 +261,12 @@ function MyBoard({ board, skinShips, cellSize }) {
         {board.flat().map((cell, i) => {
           const row = Math.floor(i / 10);
           const col = i % 10;
-          const oceanClass = getOceanClass(row, col, cell);
+          const isSunk = sunkCells.has(`${row},${col}`);
+          const oceanClass = getOceanClass(row, col, cell, isSunk);
           return (
             <div
               key={i}
-              style={{
-                width: `${cellSize}px`,
-                height: `${cellSize}px`,
-              }}
+              style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
               className={`rounded-sm ${oceanClass}`}
             />
           );
@@ -264,15 +303,52 @@ function MyBoard({ board, skinShips, cellSize }) {
   );
 }
 
-function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips }) {
+function detectShipsFromHits(board) {
+  if (!board) return [];
+  const visited = Array.from({ length: 10 }, () => Array(10).fill(false));
+  const ships = [];
+
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      if (visited[r][c]) continue;
+      if (board[r][c] !== 'HIT') continue;
+
+      let hLen = 0;
+      while (c + hLen < 10 && board[r][c + hLen] === 'HIT' && !visited[r][c + hLen]) {
+        hLen++;
+      }
+
+      let vLen = 0;
+      while (r + vLen < 10 && board[r + vLen][c] === 'HIT' && !visited[r + vLen][c]) {
+        vLen++;
+      }
+
+      if (hLen >= 2 && hLen >= vLen) {
+        for (let i = 0; i < hLen; i++) visited[r][c + i] = true;
+        ships.push({ row: r, col: c, size: hLen, orientation: 'HORIZONTAL' });
+      } else if (vLen >= 2) {
+        for (let i = 0; i < vLen; i++) visited[r + i][c] = true;
+        ships.push({ row: r, col: c, size: vLen, orientation: 'VERTICAL' });
+      } else {
+        visited[r][c] = true;
+        ships.push({ row: r, col: c, size: 1, orientation: 'HORIZONTAL' });
+      }
+    }
+  }
+  return ships;
+}
+
+function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips, sunkShipTypes, sunkCellsSet }) {
   if (!board) return null;
 
-  // Detectar e renderizar navios quando revelado
   const ships = revealed ? assignShipData(detectShips(board), board, skinShips) : [];
 
+  // Usar coordenadas exatas vindas do backend (acumuladas no state pai)
+  const sunkCells = sunkCellsSet || new Set();
+
   return (
-    <div className={`relative overflow-hidden rounded-lg ${active ? 'ring-2 ring-cyan-500' : ''}`}>
-      {/* Sombras de peixes no fundo */}
+    <div className={`relative overflow-hidden rounded-md ${active ? 'ring-2 ring-[#c4983c]/50' : ''}`}>
+      {/* Peixes animados no fundo */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <img src="/fish/right/fish2.png" alt="" className="absolute top-[18%] h-8 opacity-[0.15] animate-[swim-right_16s_linear_infinite] [animation-delay:2s]" />
         <img src="/fish/left/fish1.png" alt="" className="absolute top-[42%] h-6 opacity-[0.17] animate-[swim-left_13s_linear_infinite] [animation-delay:6s]" />
@@ -284,15 +360,13 @@ function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips }
         {board.flat().map((cell, i) => {
           const row = Math.floor(i / 10);
           const col = i % 10;
-          const oceanClass = getOceanClass(row, col, cell);
-          const hover = active && cell === 'EMPTY' ? 'hover:bg-red-400/60' : '';
+          const isSunk = sunkCells.has(`${row},${col}`);
+          const oceanClass = getOceanClass(row, col, cell, isSunk);
+          const hover = active && cell === 'EMPTY' ? 'hover:bg-[#8b1a1a]/40' : '';
           return (
             <div
               key={i}
-              style={{
-                width: `${cellSize}px`,
-                height: `${cellSize}px`,
-              }}
+              style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
               className={`rounded-sm ${active ? 'cursor-crosshair' : 'cursor-default'} ${oceanClass} ${hover} transition-colors`}
               onClick={() => onClick?.(row, col)}
             />
@@ -300,7 +374,6 @@ function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips }
         })}
       </div>
 
-      {/* Navios revelados ao final da partida */}
       {revealed && ships.map((ship, idx) => {
         if (!ship.img) return null;
         const cellTotal = cellSize + GAP;
@@ -336,9 +409,11 @@ export default function Game() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
-  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote } = useGame(token);
+  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, connectionStatus, reconnectInfo } = useGame(token);
   const [sunkOpponentShips, setSunkOpponentShips] = useState([]);
+  const [sunkOpponentCells, setSunkOpponentCells] = useState(new Set());
   const [gameFinished, setGameFinished] = useState(false);
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
   const cellSize = useResponsiveCellSize();
 
   useEffect(() => {
@@ -348,7 +423,6 @@ export default function Game() {
   useEffect(() => {
     if (gameState?.phase === 'FINISHED' && !gameFinished) {
       setGameFinished(true);
-      // Mostra os tabuleiros revelados por 5 segundos antes de ir para GameOver
       setTimeout(() => {
         navigate(`/game-over?winner=${gameState.winnerId}&gameId=${gameId}`);
       }, 5000);
@@ -360,6 +434,16 @@ export default function Game() {
         }
         return prev;
       });
+      // Acumular coordenadas exatas do navio afundado (vindas do backend)
+      if (gameState.sunkShipCells && gameState.sunkShipCells.length > 0) {
+        setSunkOpponentCells(prev => {
+          const next = new Set(prev);
+          for (const cell of gameState.sunkShipCells) {
+            next.add(`${cell[0]},${cell[1]}`);
+          }
+          return next;
+        });
+      }
     }
   }, [gameState, navigate, gameFinished]);
 
@@ -370,7 +454,12 @@ export default function Game() {
     shoot(gameId, row, col);
   };
 
-  // Determinar skins baseado no mySkin do backend
+  const handleSurrender = () => {
+    surrender(gameId);
+    resetGame();
+    navigate('/lobby');
+  };
+
   const mySkin = gameState?.mySkin || 'padrao';
   const opponentSkin = mySkin === 'padrao' ? 'pirate' : 'padrao';
   const mySkinShips = SKINS[mySkin];
@@ -383,39 +472,66 @@ export default function Game() {
   }));
 
   return (
-    <div className="min-h-screen bg-[#0a1a12] flex flex-col">
-      <header className="w-full px-4 sm:px-8 py-5 border-b border-emerald-900/40 flex items-center justify-between">
-        <h1 className="text-xl font-black text-white tracking-widest uppercase">Battleship</h1>
-        <span className="text-slate-500 text-sm">{username}</span>
+    <div className="min-h-screen bg-[#211a14] flex flex-col">
+      <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
+      <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {!gameFinished && (
+            <div className="relative">
+              {!showSurrenderConfirm ? (
+                <button
+                  onClick={() => setShowSurrenderConfirm(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#8b1a1a]/50 text-[#c45a4a] text-xs font-medium tracking-wider hover:bg-[#8b1a1a]/20 hover:border-[#8b1a1a] transition-colors"
+                >
+                  <span>🏳️</span> Desistir
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-[#c45a4a] text-xs font-medium">Tem certeza?</span>
+                  <button
+                    onClick={handleSurrender}
+                    className="px-3 py-1.5 rounded-md bg-[#8b1a1a] text-[#e8d5b0] text-xs font-bold tracking-wider hover:bg-[#a52020] transition-colors"
+                  >
+                    Sim
+                  </button>
+                  <button
+                    onClick={() => setShowSurrenderConfirm(false)}
+                    className="px-3 py-1.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium hover:text-[#e8d5b0] transition-colors"
+                  >
+                    Não
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
+        </div>
+        <span className="text-[#5a5048] text-sm">{username}</span>
       </header>
 
-      <div className="w-full flex justify-center py-3 sm:py-4">
-        <div className={`px-4 sm:px-8 py-2 sm:py-3 rounded-lg text-sm sm:text-base font-bold tracking-wider uppercase ${
+      <div className="w-full flex flex-col items-center justify-center h-20 sm:h-22">
+        <div className={`px-4 sm:px-8 py-2 sm:py-3 rounded-md text-sm sm:text-base font-bold tracking-wider uppercase font-[MedievalSharp] ${
           gameFinished
             ? (gameState?.winnerId === username
-              ? 'bg-emerald-800/80 text-emerald-300'
-              : 'bg-red-900/60 text-red-300')
+              ? 'bg-[#8b6914]/20 border border-[#c4983c]/40 text-[#c4983c]'
+              : 'bg-[#8b1a1a]/20 border border-[#8b1a1a]/40 text-[#c45a4a]')
             : gameState?.myTurn
-              ? 'bg-emerald-800/80 text-emerald-300 animate-pulse'
-              : 'bg-[#0f2518] text-slate-500 border border-emerald-900/40'
+              ? 'bg-[#8b6914]/20 border border-[#c4983c]/40 text-[#c4983c] animate-pulse'
+              : 'bg-[#2a1f15] border border-[#3d2a1a]/30 text-[#5a5048]'
         }`}>
           {gameFinished
             ? (gameState?.winnerId === username ? 'Vitória' : 'Derrota')
             : gameState?.myTurn ? 'Sua vez — Ataque' : 'Aguardando oponente...'}
         </div>
+        {gameState?.sunkShipType && gameState?.lastShotResult === 'SUNK' && (
+          <span className="text-[#c4983c] text-sm font-semibold mt-1">
+            {gameState.sunkShipType} afundado!
+          </span>
+        )}
       </div>
 
-      {gameState?.lastShotResult && (
-        <div className="w-full flex justify-center pb-2">
-          <span className="text-yellow-400 text-sm font-semibold">
-            Último tiro: {gameState.lastShotResult}
-            {gameState.sunkShipType && ` — ${gameState.sunkShipType} AFUNDADO!`}
-          </span>
-        </div>
-      )}
-
       <div className="flex-1 flex items-center justify-center px-2 sm:px-4 pb-20">
-        <div className="flex flex-col xl:flex-row items-center xl:items-start gap-6">
+        <div className="flex flex-col xl:flex-row items-center xl:items-stretch gap-6">
           {/* Desktop ship list - left */}
           <ShipList ships={myShipsStatus} title="Minha Frota" align="left" mobile={false} />
 
@@ -423,24 +539,16 @@ export default function Game() {
             {/* Boards */}
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
               <div className="relative overflow-visible">
-                <div className="bg-[#060d18] rounded-lg p-3 sm:p-6">
-                  <h2 className="text-center text-blue-300/50 text-xs font-medium tracking-wider mb-3 uppercase">Meu Tabuleiro</h2>
+                <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-3 sm:p-6 relative z-10">
+                  <h2 className="text-center text-[#c4b28a]/50 text-xs font-medium tracking-wider mb-3 uppercase font-[MedievalSharp]">Meu Tabuleiro</h2>
                   <MyBoard board={gameState?.myBoard} skinShips={mySkinShips} cellSize={cellSize} />
                 </div>
-                <img src="/textures/Superior_esquerdo.png" alt="" className="absolute pointer-events-none" style={{ top: '-10px', left: '-10px', width: '100px', height: '100px' }} />
-                <img src="/textures/Superior_direito.png" alt="" className="absolute pointer-events-none" style={{ top: '-10px', right: '-10px', width: '100px', height: '100px' }} />
-                <img src="/textures/Inferior_esquerdo.png" alt="" className="absolute pointer-events-none" style={{ bottom: '-10px', left: '-10px', width: '100px', height: '100px' }} />
-                <img src="/textures/Inferior_direito.png" alt="" className="absolute pointer-events-none" style={{ bottom: '-10px', right: '-10px', width: '100px', height: '100px' }} />
               </div>
               <div className="relative overflow-visible">
-                <div className="bg-[#060d18] rounded-lg p-3 sm:p-6">
-                  <h2 className="text-center text-blue-300/50 text-xs font-medium tracking-wider mb-3 uppercase">Oponente</h2>
-                  <OpponentBoard board={gameState?.opponentBoard} onClick={handleShoot} active={gameState?.myTurn && !gameFinished} cellSize={cellSize} revealed={gameFinished} skinShips={opponentSkinShips} />
+                <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-3 sm:p-6 relative z-10">
+                  <h2 className="text-center text-[#c4b28a]/50 text-xs font-medium tracking-wider mb-3 uppercase font-[MedievalSharp]">Oponente</h2>
+                  <OpponentBoard board={gameState?.opponentBoard} onClick={handleShoot} active={gameState?.myTurn && !gameFinished} cellSize={cellSize} revealed={gameFinished} skinShips={opponentSkinShips} sunkShipTypes={sunkOpponentShips} sunkCellsSet={sunkOpponentCells} />
                 </div>
-                <img src="/textures/Superior_esquerdo.png" alt="" className="absolute pointer-events-none" style={{ top: '-10px', left: '-10px', width: '100px', height: '100px' }} />
-                <img src="/textures/Superior_direito.png" alt="" className="absolute pointer-events-none" style={{ top: '-10px', right: '-10px', width: '100px', height: '100px' }} />
-                <img src="/textures/Inferior_esquerdo.png" alt="" className="absolute pointer-events-none" style={{ bottom: '-10px', left: '-10px', width: '100px', height: '100px' }} />
-                <img src="/textures/Inferior_direito.png" alt="" className="absolute pointer-events-none" style={{ bottom: '-10px', right: '-10px', width: '100px', height: '100px' }} />
               </div>
             </div>
 
@@ -457,13 +565,13 @@ export default function Game() {
       </div>
 
       {emote && (
-        <div className="fixed top-24 right-8 bg-[#0f2518] border border-emerald-900/40 px-5 py-3 rounded-2xl text-4xl animate-bounce shadow-xl">
+        <div className="fixed top-24 right-8 bg-[#2a1f15] border border-[#c4983c]/40 px-5 py-3 rounded-2xl text-4xl animate-bounce shadow-xl">
           {emote.emote}
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 flex justify-center py-4 bg-[#0a1a12]/80 backdrop-blur-sm border-t border-emerald-900/40">
-        <div className="flex gap-3 bg-[#0f2518] px-6 py-3 rounded-xl border border-emerald-900/40">
+      <div className="fixed bottom-0 left-0 right-0 flex justify-center py-4 bg-[#211a14]/90 backdrop-blur-sm border-t border-[#3d2a1a]/30 z-30">
+        <div className="flex gap-3 bg-[#2a1f15] px-6 py-3 rounded-lg border border-[#3d2a1a]/40">
           {EMOTES.map(e => (
             <button key={e} onClick={() => sendEmote(gameId, e)} className="text-2xl hover:scale-125 transition-transform active:scale-90">
               {e}

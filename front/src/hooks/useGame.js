@@ -3,17 +3,48 @@ import { Client } from '@stomp/stompjs';
 
 const WS_URL = import.meta.env.VITE_WS_URL;
 
+// Configuração de reconnect com backoff exponencial
+const RECONNECT_CONFIG = {
+  initialDelay: 1000,    // 1s
+  maxDelay: 30000,       // 30s
+  multiplier: 2,
+  maxAttempts: 10,
+};
+
 // Singleton client para manter uma única conexão STOMP
 let sharedClient = null;
 let sharedConnectedPromise = null;
 let lastGameState = null;
 let lastRematchGameId = null;
+let reconnectAttempts = 0;
+let reconnectTimeout = null;
+let isReconnecting = false;
+let currentToken = null;
 const subscribers = new Set();
 
 function notifySubscribers(topic, data) {
   if (topic === 'gameState') lastGameState = data;
   if (topic === 'rematch') lastRematchGameId = data;
   subscribers.forEach(fn => fn(topic, data));
+}
+
+function getReconnectDelay() {
+  const delay = Math.min(
+    RECONNECT_CONFIG.initialDelay * Math.pow(RECONNECT_CONFIG.multiplier, reconnectAttempts),
+    RECONNECT_CONFIG.maxDelay
+  );
+  // Adiciona jitter de ±20% para evitar thundering herd
+  const jitter = delay * 0.2 * (Math.random() * 2 - 1);
+  return Math.round(delay + jitter);
+}
+
+function clearReconnect() {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+  reconnectAttempts = 0;
+  isReconnecting = false;
 }
 
 export function useGame(token) {
@@ -23,7 +54,14 @@ export function useGame(token) {
   const [emote, setEmote] = useState(null);
   const [connected, setConnected] = useState(false);
   const [rematchGameId, setRematchGameId] = useState(lastRematchGameId);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'connected' | 'disconnected' | 'reconnecting'
+  const [reconnectInfo, setReconnectInfo] = useState(null); // { attempt, maxAttempts, nextRetryIn }
   const subscribedGamesRef = useRef(new Set());
+
+  // Manter token atualizado
+  useEffect(() => {
+    currentToken = token;
+  }, [token]);
 
   // Registrar listener local
   useEffect(() => {
@@ -32,6 +70,8 @@ export function useGame(token) {
       if (topic === 'roomCode') setRoomCode(data);
       if (topic === 'error') setError(data);
       if (topic === 'rematch') setRematchGameId(data);
+      if (topic === 'connectionStatus') setConnectionStatus(data);
+      if (topic === 'reconnectInfo') setReconnectInfo(data);
       if (topic === 'emote') {
         setEmote(data);
         setTimeout(() => setEmote(null), 3000);
@@ -41,40 +81,110 @@ export function useGame(token) {
     return () => subscribers.delete(handler);
   }, []);
 
-  const connect = useCallback(() => {
+  // Sincronizar status de conexão
+  useEffect(() => {
     if (sharedClient?.connected) {
       setConnected(true);
+      setConnectionStatus('connected');
+    }
+  }, []);
+
+  const setupSubscriptions = useCallback((client) => {
+    client.subscribe('/user/topic/game/created', (msg) => {
+      const data = JSON.parse(msg.body);
+      if (data.rematch) {
+        subscribeToGame(data.gameId);
+        notifySubscribers('rematch', data.gameId);
+      } else if (data.singlePlayer) {
+        subscribeToGame(data.gameId);
+      } else {
+        notifySubscribers('roomCode', data.gameId);
+      }
+    });
+
+    client.subscribe('/user/topic/game/error', (msg) => {
+      const data = JSON.parse(msg.body);
+      notifySubscribers('error', data.message);
+    });
+
+    // Re-subscrever jogos ativos após reconexão
+    subscribedGamesRef.current.forEach(gameId => {
+      client.subscribe(`/user/topic/game/${gameId}`, (msg) => {
+        notifySubscribers('gameState', JSON.parse(msg.body));
+      });
+      client.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
+        notifySubscribers('emote', JSON.parse(msg.body));
+      });
+    });
+  }, []);
+
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectAttempts >= RECONNECT_CONFIG.maxAttempts) {
+      notifySubscribers('connectionStatus', 'disconnected');
+      notifySubscribers('reconnectInfo', { attempt: reconnectAttempts, maxAttempts: RECONNECT_CONFIG.maxAttempts, failed: true });
+      isReconnecting = false;
+      return;
+    }
+
+    isReconnecting = true;
+    const delay = getReconnectDelay();
+    notifySubscribers('connectionStatus', 'reconnecting');
+    notifySubscribers('reconnectInfo', {
+      attempt: reconnectAttempts + 1,
+      maxAttempts: RECONNECT_CONFIG.maxAttempts,
+      nextRetryIn: delay,
+    });
+
+    reconnectTimeout = setTimeout(() => {
+      reconnectAttempts++;
+      doConnect(currentToken, true);
+    }, delay);
+  }, []);
+
+  const doConnect = useCallback((tkn, isRetry = false) => {
+    if (sharedClient?.connected) {
+      setConnected(true);
+      setConnectionStatus('connected');
+      clearReconnect();
       return Promise.resolve();
     }
-    if (sharedConnectedPromise) return sharedConnectedPromise;
 
-    sharedConnectedPromise = new Promise((resolve) => {
+    // Se já está conectando e não é retry, retorna promise existente
+    if (sharedConnectedPromise && !isRetry) return sharedConnectedPromise;
+
+    // Limpar cliente anterior se houver
+    if (sharedClient) {
+      try { sharedClient.deactivate(); } catch (e) { /* ignore */ }
+      sharedClient = null;
+    }
+    sharedConnectedPromise = null;
+
+    sharedConnectedPromise = new Promise((resolve, reject) => {
       const client = new Client({
         brokerURL: WS_URL,
-        connectHeaders: { token },
+        connectHeaders: { token: tkn },
+        reconnectDelay: 0, // Desabilitar reconnect nativo do STOMP, usamos o nosso
         onConnect: () => {
           setConnected(true);
-
-          client.subscribe('/user/topic/game/created', (msg) => {
-            const data = JSON.parse(msg.body);
-            if (data.rematch) {
-              // Rematch: subscreve ao novo jogo e notifica
-              subscribeToGame(data.gameId);
-              notifySubscribers('rematch', data.gameId);
-            } else if (data.singlePlayer) {
-              // Singleplayer: subscreve direto sem mostrar código
-              subscribeToGame(data.gameId);
-            } else {
-              notifySubscribers('roomCode', data.gameId);
-            }
-          });
-
-          client.subscribe('/user/topic/game/error', (msg) => {
-            const data = JSON.parse(msg.body);
-            notifySubscribers('error', data.message);
-          });
-
+          clearReconnect();
+          notifySubscribers('connectionStatus', 'connected');
+          notifySubscribers('reconnectInfo', null);
+          setupSubscriptions(client);
           resolve();
+        },
+        onStompError: (frame) => {
+          console.error('STOMP error:', frame.headers?.message);
+          if (!isRetry) reject(new Error(frame.headers?.message || 'Connection failed'));
+        },
+        onWebSocketClose: () => {
+          setConnected(false);
+          sharedClient = null;
+          sharedConnectedPromise = null;
+
+          // Só tenta reconectar se não foi desconexão intencional
+          if (currentToken && !isReconnecting) {
+            scheduleReconnect();
+          }
         },
         onDisconnect: () => {
           setConnected(false);
@@ -88,13 +198,22 @@ export function useGame(token) {
     });
 
     return sharedConnectedPromise;
-  }, [token]);
+  }, [setupSubscriptions, scheduleReconnect]);
+
+  const connect = useCallback(() => {
+    return doConnect(token);
+  }, [token, doConnect]);
 
   const disconnect = useCallback(() => {
+    clearReconnect();
+    currentToken = null; // Impede reconexão automática
     sharedClient?.deactivate();
     sharedClient = null;
     sharedConnectedPromise = null;
     setConnected(false);
+    setConnectionStatus('disconnected');
+    notifySubscribers('connectionStatus', 'disconnected');
+    notifySubscribers('reconnectInfo', null);
   }, []);
 
   const resetGame = useCallback(() => {
@@ -168,9 +287,17 @@ export function useGame(token) {
     });
   }, []);
 
+  const surrender = useCallback((gameId) => {
+    sharedClient?.publish({
+      destination: '/app/game/surrender',
+      body: JSON.stringify({ gameId }),
+    });
+  }, []);
+
   return {
     gameState, roomCode, error, emote, connected, rematchGameId,
+    connectionStatus, reconnectInfo,
     connect, disconnect, resetGame, subscribeToGame,
-    createRoom, startSinglePlayer, joinRoom, placeShip, shoot, sendEmote, requestRematch,
+    createRoom, startSinglePlayer, joinRoom, placeShip, shoot, sendEmote, requestRematch, surrender,
   };
 }

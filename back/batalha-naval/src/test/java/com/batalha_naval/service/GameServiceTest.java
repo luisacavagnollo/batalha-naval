@@ -1,18 +1,33 @@
 package com.batalha_naval.service;
 
 import com.batalha_naval.domain.*;
+import com.batalha_naval.model.GameRecord;
+import com.batalha_naval.model.PlayerStats;
+import com.batalha_naval.repository.GameRecordRepository;
+import com.batalha_naval.repository.PlayerStatsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class GameServiceTest {
 
     private GameService gameService;
+    private GameRecordRepository gameRecordRepository;
+    private PlayerStatsRepository playerStatsRepository;
 
     @BeforeEach
     void setUp() {
-        gameService = new GameService();
+        gameRecordRepository = mock(GameRecordRepository.class);
+        playerStatsRepository = mock(PlayerStatsRepository.class);
+        when(playerStatsRepository.findByUsername(anyString())).thenReturn(Optional.empty());
+        when(gameRecordRepository.findTop10ByPlayer1OrPlayer2OrderByTimestampDesc(anyString(), anyString()))
+                .thenReturn(Collections.emptyList());
+        gameService = new GameService(gameRecordRepository, playerStatsRepository);
     }
 
     @Test
@@ -56,7 +71,7 @@ class GameServiceTest {
     }
 
     @Test
-    void shoot_incrementsScoreOnWin() {
+    void shoot_persistsOnWin() {
         Game game = gameService.createGame("p1");
         gameService.joinGame(game.getId(), "p2");
         String gameId = game.getId();
@@ -84,8 +99,18 @@ class GameServiceTest {
             gameService.shoot(gameId, "p1", t[0], t[1]);
         }
 
-        assertEquals(1, gameService.getPlayerScore("p1"));
-        assertEquals(0, gameService.getPlayerScore("p2"));
+        // Verifica que persistiu o resultado
+        verify(gameRecordRepository).save(any(GameRecord.class));
+        verify(playerStatsRepository, atLeast(2)).save(any(PlayerStats.class));
+    }
+
+    @Test
+    void getPlayerStats_returnsDefaultForNewPlayer() {
+        var stats = gameService.getPlayerStats("newPlayer");
+        assertEquals(0, stats.getWins());
+        assertEquals(0, stats.getLosses());
+        assertEquals(0.0, stats.getWinRate());
+        assertTrue(stats.getHistory().isEmpty());
     }
 
     private void placeAllShips(String gameId, String playerId) {

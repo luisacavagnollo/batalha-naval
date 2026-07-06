@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
+import ConnectionStatus from '../components/ConnectionStatus';
 
 const SHIPS_PADRAO = [
-  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao/carrier.png' },
-  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao/battleship.png' },
-  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao/cruiser.png' },
-  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao/submarine.png' },
-  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
+  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao_antigo/carrier_antigo.png' },
+  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao_antigo/battleship_antigo.png' },
+  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao_antigo/cruiser_antigo.png' },
+  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao_antigo/submarine_antigo.png' },
+  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao_antigo/destroyer_antigo.png' },
 ];
 
 const SHIPS_PIRATE = [
@@ -39,9 +40,9 @@ function useResponsiveCellSize() {
 }
 
 const OCEAN_COLORS = [
-  'from-[#0f2744] to-[#133254]',
-  'from-[#112d4e] to-[#0d2340]',
-  'from-[#0e2a48] to-[#122f50]',
+  'from-[#0a1a2e] to-[#0f2640]',
+  'from-[#081422] to-[#0c1e35]',
+  'from-[#0b1828] to-[#0e2238]',
 ];
 
 export default function PlaceShips() {
@@ -49,7 +50,7 @@ export default function PlaceShips() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const navigate = useNavigate();
-  const { connect, connected, subscribeToGame, placeShip, gameState } = useGame(token);
+  const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, connectionStatus, reconnectInfo } = useGame(token);
   const cellSize = useResponsiveCellSize();
 
   const [orientation, setOrientation] = useState('HORIZONTAL');
@@ -147,25 +148,22 @@ export default function PlaceShips() {
     setHoverCells([]);
   };
 
-  // Clicar no nome de um navio já posicionado para reposicioná-lo
   const handleSelectShip = (type) => {
     setSelectedShip(type);
     setHoverCells([]);
   };
 
-  // Enviar todos os navios ao backend
   const handleReady = async () => {
     setSending(true);
     for (const ship of placed) {
       placeShip(gameId, ship.type, ship.row, ship.col, ship.orientation);
-      // Pequeno delay para garantir ordem
       await new Promise(r => setTimeout(r, 100));
     }
   };
 
   const cellColor = (row, col) => {
     if (hoverCells.some(c => c.row === row && c.col === col)) {
-      return 'bg-cyan-400/30';
+      return 'bg-[#c4983c]/25';
     }
     const variant = (row + col) % 3;
     return `bg-gradient-to-br ${OCEAN_COLORS[variant]}`;
@@ -198,11 +196,20 @@ export default function PlaceShips() {
   const isPlaced = (type) => placed.some(p => p.type === type);
 
   return (
-    <div className="min-h-screen bg-[#0a1a12] flex flex-col">
+    <div className="min-h-screen bg-[#211a14] flex flex-col">
+      <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
       {/* Header */}
-      <header className="w-full px-4 sm:px-8 py-5 border-b border-emerald-900/40 flex items-center justify-between">
-        <h1 className="text-xl font-black text-white tracking-widest uppercase">Battleship</h1>
-        <span className="text-slate-500 text-sm">{username}</span>
+      <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => { surrender(gameId); resetGame(); navigate('/lobby'); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium tracking-wider hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors"
+          >
+            <span>←</span> Lobby
+          </button>
+          <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
+        </div>
+        <span className="text-[#5a5048] text-sm">{username}</span>
       </header>
 
       {/* Conteúdo */}
@@ -210,8 +217,8 @@ export default function PlaceShips() {
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
 
           {/* Painel de navios */}
-          <div className="bg-[#0f2518] border border-emerald-900/30 rounded-xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 w-full max-w-sm lg:w-64">
-            <h3 className="text-slate-500 text-xs font-medium tracking-wider uppercase">Seus navios</h3>
+          <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 w-full max-w-sm lg:w-64">
+            <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase font-[MedievalSharp]">Seus navios</h3>
             <div className="flex flex-row flex-wrap lg:flex-col gap-2 sm:gap-3">
               {SHIPS.map((ship) => {
                 const placedOnBoard = isPlaced(ship.type);
@@ -220,8 +227,8 @@ export default function PlaceShips() {
                   <button
                     key={ship.type}
                     onClick={() => handleSelectShip(ship.type)}
-                    className={`flex flex-col items-start gap-1 p-2 sm:p-3 rounded-xl border transition-all flex-1 lg:flex-none min-w-[120px]
-                      ${isSelected ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-600 hover:border-slate-500 bg-slate-700/50'}
+                    className={`flex flex-col items-start gap-1 p-2 sm:p-3 rounded-md border transition-all flex-1 lg:flex-none min-w-[120px]
+                      ${isSelected ? 'border-[#c4983c] bg-[#c4983c]/10' : 'border-[#3d2a1a]/40 hover:border-[#3d2a1a] bg-[#211a14]/50'}
                       ${placedOnBoard && !isSelected ? 'opacity-60' : 'opacity-100'}
                     `}
                   >
@@ -233,11 +240,11 @@ export default function PlaceShips() {
                         style={{ width: `${ship.size * 30}px`, height: '28px' }}
                       />
                     ) : (
-                      <span className="text-emerald-400 text-sm font-semibold">
+                      <span className="text-[#c4983c] text-sm font-semibold">
                         ✓ No tabuleiro
                       </span>
                     )}
-                    <span className="text-slate-300 text-xs font-bold">
+                    <span className="text-[#e8d5b0] text-xs font-bold">
                       {ship.name} ({ship.size})
                     </span>
                   </button>
@@ -247,33 +254,33 @@ export default function PlaceShips() {
           </div>
 
           {/* Grid + controles */}
-          <div className="bg-[#0f2518] border border-emerald-900/30 rounded-xl p-4 sm:p-8 flex flex-col items-center">
-            <h2 className="text-white text-base sm:text-lg font-medium tracking-wide mb-2">Posicione seus navios</h2>
+          <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-4 sm:p-8 flex flex-col items-center">
+            <h2 className="text-[#e8d5b0] text-base sm:text-lg font-medium tracking-wide mb-2 font-[MedievalSharp]">Posicione seus navios</h2>
 
             {selectedShip && (
-              <p className="text-emerald-400/80 text-sm mb-4">
+              <p className="text-[#c4983c]/80 text-sm mb-4">
                 {getSelectedShipData()?.name} — {getSelectedShipData()?.size} células
               </p>
             )}
 
             {!selectedShip && !allPlaced && (
-              <p className="text-slate-500 text-sm mb-4">Selecione um navio acima</p>
+              <p className="text-[#5a5048] text-sm mb-4">Selecione um navio acima</p>
             )}
 
             {/* Controles */}
             <div className="mb-4 flex gap-3 flex-wrap justify-center">
               <button
                 onClick={() => setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL')}
-                className="px-4 py-2 rounded-lg border border-emerald-900/50 text-slate-300 text-xs font-medium tracking-wider hover:border-emerald-700 hover:text-white transition-colors"
+                className="px-4 py-2 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium tracking-wider hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors"
               >
                 Rotacionar ({orientation === 'HORIZONTAL' ? 'H' : 'V'})
               </button>
-              <span className="text-slate-600 text-xs self-center hidden sm:inline">ou botão direito</span>
+              <span className="text-[#5a5048] text-xs self-center hidden sm:inline">ou botão direito</span>
             </div>
 
             {/* Grid */}
             <div
-              className="relative mb-6 overflow-hidden rounded-lg"
+              className="relative mb-6 overflow-hidden rounded-md"
               onMouseLeave={() => { setHoverCells([]); setHoverPos(null); }}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -282,7 +289,7 @@ export default function PlaceShips() {
                 }
               }}
             >
-              {/* Sombras de peixes no fundo */}
+              {/* Peixes animados no fundo */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 <img src="/fish/left/fish4.png" alt="" className="absolute top-[15%] h-9 opacity-[0.14] animate-[swim-left_16s_linear_infinite]" />
                 <img src="/fish/right/fish2.png" alt="" className="absolute top-[38%] h-6 opacity-[0.17] animate-[swim-right_19s_linear_infinite] [animation-delay:4s]" />
@@ -323,7 +330,7 @@ export default function PlaceShips() {
             {allPlaced && !sending && (
               <button
                 onClick={handleReady}
-                className="w-full max-w-xs py-3.5 rounded-lg bg-emerald-800 text-white text-sm font-bold tracking-wider uppercase hover:bg-emerald-700 transition-colors"
+                className="w-full max-w-xs py-3.5 rounded-md bg-[#8b6914] text-[#211a14] text-sm font-bold tracking-wider uppercase hover:bg-[#c4983c] transition-colors font-[MedievalSharp]"
               >
                 Pronto
               </button>
@@ -331,8 +338,8 @@ export default function PlaceShips() {
 
             {sending && (
               <div className="flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-slate-400 text-sm">Aguardando oponente...</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#c4983c] animate-pulse"></div>
+                <span className="text-[#c4b28a] text-sm">Aguardando oponente...</span>
               </div>
             )}
           </div>

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap');
 @import "tailwindcss";
 
 @keyframes swim-right {
@@ -8,4 +9,28 @@
 @keyframes swim-left {
   from { left: 110%; }
   to { left: -10%; }
+}
+
+/* Reset de cores do scrollbar para combinar com o tema */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #211a14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3d2a1a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5a5048;
+}
+
+/* Seleção de texto com tom ouro */
+::selection {
+  background: rgba(196, 152, 60, 0.3);
+  color: #e8d5b0;
 }

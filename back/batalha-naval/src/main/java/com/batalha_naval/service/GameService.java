@@ -1,19 +1,31 @@
 package com.batalha_naval.service;
 
 import com.batalha_naval.domain.*;
+import com.batalha_naval.dto.PlayerStatsResponse;
+import com.batalha_naval.model.GameRecord;
+import com.batalha_naval.model.PlayerStats;
+import com.batalha_naval.repository.GameRecordRepository;
+import com.batalha_naval.repository.PlayerStatsRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class GameService {
 
     private final ConcurrentHashMap<String, Game> games = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> codeToGameId = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Integer> scores = new ConcurrentHashMap<>();
     private final Random random = new Random();
+
+    private final GameRecordRepository gameRecordRepository;
+    private final PlayerStatsRepository playerStatsRepository;
+
+    public GameService(GameRecordRepository gameRecordRepository, PlayerStatsRepository playerStatsRepository) {
+        this.gameRecordRepository = gameRecordRepository;
+        this.playerStatsRepository = playerStatsRepository;
+    }
 
     public Game createGame(String playerId) {
         Game game = new Game();
@@ -38,6 +50,7 @@ public class GameService {
             throw new IllegalStateException("Você já está nesta sala");
         }
         game.setPlayer2Id(playerId);
+        game.touchActivity();
         return game;
     }
 
@@ -53,6 +66,7 @@ public class GameService {
         Game game = getGame(gameId);
         boolean result = game.placeShip(playerId, type, row, col, orientation);
         if (result) {
+            game.touchActivity();
             game.startGameIfReady();
         }
         return result;
@@ -60,19 +74,89 @@ public class GameService {
 
     public ShotOutcome shoot(String gameId, String playerId, int row, int col) {
         Game game = getGame(gameId);
+        game.touchActivity();
         ShotOutcome outcome = game.shoot(playerId, row, col);
         if (outcome != null && game.getPhase() == GamePhase.FINISHED) {
-            scores.merge(game.getWinnerId(), 1, Integer::sum);
+            persistGameResult(game);
         }
         return outcome;
     }
 
-    public Map<String, Integer> getScores() {
-        return scores;
+    private void persistGameResult(Game game) {
+        String winner = game.getWinnerId();
+        String p1 = game.getPlayer1Id();
+        String p2 = game.getPlayer2Id();
+        long now = System.currentTimeMillis();
+        boolean isSinglePlayer = "BOT".equals(p2);
+
+        // Salvar registro da partida
+        GameRecord record = new GameRecord(p1, p2 != null ? p2 : "BOT", winner, now, isSinglePlayer);
+        gameRecordRepository.save(record);
+
+        // Atualizar stats dos jogadores (não salva stats para BOT)
+        if (p1 != null && !p1.equals("BOT")) {
+            PlayerStats stats1 = playerStatsRepository.findByUsername(p1)
+                    .orElse(new PlayerStats(p1));
+            if (p1.equals(winner)) {
+                stats1.incrementWins();
+            } else {
+                stats1.incrementLosses();
+            }
+            playerStatsRepository.save(stats1);
+        }
+
+        if (p2 != null && !p2.equals("BOT")) {
+            PlayerStats stats2 = playerStatsRepository.findByUsername(p2)
+                    .orElse(new PlayerStats(p2));
+            if (p2.equals(winner)) {
+                stats2.incrementWins();
+            } else {
+                stats2.incrementLosses();
+            }
+            playerStatsRepository.save(stats2);
+        }
+    }
+
+    public PlayerStatsResponse getPlayerStats(String playerId) {
+        // Buscar stats agregadas do banco
+        PlayerStats stats = playerStatsRepository.findByUsername(playerId)
+                .orElse(new PlayerStats(playerId));
+        int wins = stats.getWins();
+        int losses = stats.getLosses();
+        int total = wins + losses;
+        double winRate = total == 0 ? 0 : (double) wins / total * 100;
+
+        // Buscar últimas 10 partidas do banco
+        List<GameRecord> recentGames = gameRecordRepository
+                .findTop10ByPlayer1OrPlayer2OrderByTimestampDesc(playerId, playerId);
+
+        List<PlayerStatsResponse.MatchRecord> history = recentGames.stream()
+                .map(record -> {
+                    String opponent = record.getPlayer1().equals(playerId) ? record.getPlayer2() : record.getPlayer1();
+                    boolean won = playerId.equals(record.getWinner());
+                    return new PlayerStatsResponse.MatchRecord(opponent, won, record.getTimestamp());
+                })
+                .collect(Collectors.toList());
+
+        return new PlayerStatsResponse(wins, losses, Math.round(winRate * 10.0) / 10.0, history);
     }
 
     public int getPlayerScore(String playerId) {
-        return scores.getOrDefault(playerId, 0);
+        return playerStatsRepository.findByUsername(playerId)
+                .map(PlayerStats::getWins)
+                .orElse(0);
+    }
+
+    public Game surrender(String gameId, String playerId) {
+        Game game = getGame(gameId);
+        if (game.getPhase() == GamePhase.FINISHED) {
+            throw new IllegalStateException("O jogo já terminou");
+        }
+        String opponentId = game.getOpponentId(playerId);
+        game.setPhase(GamePhase.FINISHED);
+        game.setWinnerId(opponentId);
+        persistGameResult(game);
+        return game;
     }
 
     public Game rematch(String oldGameId) {
@@ -102,5 +186,36 @@ public class GameService {
             code = sb.toString();
         } while (games.containsKey(code));
         return code;
+    }
+
+    /**
+     * Remove jogos abandonados:
+     * - PLACING_SHIPS sem atividade há mais de 10 minutos
+     * - IN_PROGRESS sem atividade há mais de 30 minutos
+     * - FINISHED há mais de 5 minutos (cleanup de memória)
+     */
+    public int cleanupAbandonedGames() {
+        long now = System.currentTimeMillis();
+        List<String> toRemove = new ArrayList<>();
+
+        for (Map.Entry<String, Game> entry : games.entrySet()) {
+            Game game = entry.getValue();
+            long inactiveMs = now - game.getLastActivity();
+
+            if (game.getPhase() == GamePhase.PLACING_SHIPS && inactiveMs > 10 * 60_000) {
+                toRemove.add(entry.getKey());
+            } else if (game.getPhase() == GamePhase.IN_PROGRESS && inactiveMs > 30 * 60_000) {
+                toRemove.add(entry.getKey());
+            } else if (game.getPhase() == GamePhase.FINISHED && inactiveMs > 5 * 60_000) {
+                toRemove.add(entry.getKey());
+            }
+        }
+
+        for (String id : toRemove) {
+            games.remove(id);
+            codeToGameId.remove(id);
+        }
+
+        return toRemove.size();
     }
 }

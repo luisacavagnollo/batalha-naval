@@ -19,3 +19,12 @@ export async function register(username, email, password) {
   if (!res.ok) throw new Error('Registro falhou');
   return res.json();
 }
+
+
+export async function fetchStats(token) {
+  const res = await fetch(`${API_URL}/api/stats/me`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}

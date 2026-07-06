@@ -5,9 +5,25 @@ import PlaceShips from './pages/PlaceShips';
 import Game from './pages/Game';
 import GameOver from './pages/GameOver';
 
+function isTokenValid(token) {
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    // exp está em segundos, Date.now() em ms
+    return payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/" />;
+  if (!isTokenValid(token)) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    return <Navigate to="/" />;
+  }
+  return children;
 }
 
 export default function App() {
