@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import ConnectionStatus from '../components/ConnectionStatus';
+import ShipSelector from '../components/ShipSelector';
+import BoardGrid, { GAP } from '../components/BoardGrid';
 
 const SHIPS_PADRAO = [
   { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao_antigo/carrier_antigo.png' },
@@ -21,7 +23,6 @@ const SHIPS_PIRATE = [
 
 const CELL_SIZE_DESKTOP = 40;
 const CELL_SIZE_MOBILE = 32;
-const GAP = 2;
 
 function useResponsiveCellSize() {
   const [cellSize, setCellSize] = useState(() =>
@@ -38,12 +39,6 @@ function useResponsiveCellSize() {
 
   return cellSize;
 }
-
-const OCEAN_COLORS = [
-  'from-[#0a1a2e] to-[#0f2640]',
-  'from-[#081422] to-[#0c1e35]',
-  'from-[#0b1828] to-[#0e2238]',
-];
 
 export default function PlaceShips() {
   const { gameId } = useParams();
@@ -161,14 +156,6 @@ export default function PlaceShips() {
     }
   };
 
-  const cellColor = (row, col) => {
-    if (hoverCells.some(c => c.row === row && c.col === col)) {
-      return 'bg-[#c4983c]/25';
-    }
-    const variant = (row + col) % 3;
-    return `bg-gradient-to-br ${OCEAN_COLORS[variant]}`;
-  };
-
   const getShipStyle = (ship) => {
     const cellTotal = cellSize + GAP;
     const top = ship.row * cellTotal;
@@ -193,8 +180,6 @@ export default function PlaceShips() {
     }
   };
 
-  const isPlaced = (type) => placed.some(p => p.type === type);
-
   return (
     <div className="min-h-screen bg-[#211a14] flex flex-col">
       <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
@@ -217,41 +202,12 @@ export default function PlaceShips() {
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
 
           {/* Painel de navios */}
-          <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 w-full max-w-sm lg:w-64">
-            <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase font-[MedievalSharp]">Seus navios</h3>
-            <div className="flex flex-row flex-wrap lg:flex-col gap-2 sm:gap-3">
-              {SHIPS.map((ship) => {
-                const placedOnBoard = isPlaced(ship.type);
-                const isSelected = selectedShip === ship.type;
-                return (
-                  <button
-                    key={ship.type}
-                    onClick={() => handleSelectShip(ship.type)}
-                    className={`flex flex-col items-start gap-1 p-2 sm:p-3 rounded-md border transition-all flex-1 lg:flex-none min-w-[120px]
-                      ${isSelected ? 'border-[#c4983c] bg-[#c4983c]/10' : 'border-[#3d2a1a]/40 hover:border-[#3d2a1a] bg-[#211a14]/50'}
-                      ${placedOnBoard && !isSelected ? 'opacity-60' : 'opacity-100'}
-                    `}
-                  >
-                    {!placedOnBoard ? (
-                      <img
-                        src={ship.img}
-                        alt={ship.name}
-                        className="object-contain"
-                        style={{ width: `${ship.size * 30}px`, height: '28px' }}
-                      />
-                    ) : (
-                      <span className="text-[#c4983c] text-sm font-semibold">
-                        ✓ No tabuleiro
-                      </span>
-                    )}
-                    <span className="text-[#e8d5b0] text-xs font-bold">
-                      {ship.name} ({ship.size})
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <ShipSelector
+            ships={SHIPS}
+            selectedShip={selectedShip}
+            placedTypes={placed.map(p => p.type)}
+            onSelectShip={handleSelectShip}
+          />
 
           {/* Grid + controles */}
           <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-4 sm:p-8 flex flex-col items-center">
@@ -280,8 +236,7 @@ export default function PlaceShips() {
 
             {/* Grid */}
             <div
-              className="relative mb-6 overflow-hidden rounded-md"
-              onMouseLeave={() => { setHoverCells([]); setHoverPos(null); }}
+              className="mb-6"
               onContextMenu={(e) => {
                 e.preventDefault();
                 if (selectedShip) {
@@ -289,41 +244,35 @@ export default function PlaceShips() {
                 }
               }}
             >
-              {/* Peixes animados no fundo */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <img src="/fish/left/fish4.png" alt="" className="absolute top-[15%] h-9 opacity-[0.14] animate-[swim-left_16s_linear_infinite]" />
-                <img src="/fish/right/fish2.png" alt="" className="absolute top-[38%] h-6 opacity-[0.17] animate-[swim-right_19s_linear_infinite] [animation-delay:4s]" />
-                <img src="/fish/left/fish3.png" alt="" className="absolute top-[55%] h-7 opacity-[0.15] animate-[swim-left_14s_linear_infinite] [animation-delay:8s]" />
-                <img src="/fish/right/fish1.png" alt="" className="absolute top-[72%] h-10 opacity-[0.12] animate-[swim-right_23s_linear_infinite] [animation-delay:12s]" />
-                <img src="/fish/left/fish2.png" alt="" className="absolute top-[90%] h-5 opacity-[0.16] animate-[swim-left_26s_linear_infinite] [animation-delay:17s]" />
-              </div>
+              <BoardGrid
+                cellSize={cellSize}
+                onCellClick={handleClick}
+                onCellHover={handleHover}
+                onMouseLeave={() => { setHoverCells([]); setHoverPos(null); }}
+                getCellClass={(row, col) =>
+                  hoverCells.some(c => c.row === row && c.col === col) ? 'bg-[#c4983c]/25' : ''
+                }
+              >
+                {/* Peixes animados no fundo */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                  <img src="/fish/left/fish4.png" alt="" className="absolute top-[15%] h-9 opacity-[0.14] animate-[swim-left_16s_linear_infinite]" />
+                  <img src="/fish/right/fish2.png" alt="" className="absolute top-[38%] h-6 opacity-[0.17] animate-[swim-right_19s_linear_infinite] [animation-delay:4s]" />
+                  <img src="/fish/left/fish3.png" alt="" className="absolute top-[55%] h-7 opacity-[0.15] animate-[swim-left_14s_linear_infinite] [animation-delay:8s]" />
+                  <img src="/fish/right/fish1.png" alt="" className="absolute top-[72%] h-10 opacity-[0.12] animate-[swim-right_23s_linear_infinite] [animation-delay:12s]" />
+                  <img src="/fish/left/fish2.png" alt="" className="absolute top-[90%] h-5 opacity-[0.16] animate-[swim-left_26s_linear_infinite] [animation-delay:17s]" />
+                </div>
 
-              <div className="grid grid-cols-10" style={{ rowGap: `${GAP}px`, columnGap: `${GAP}px`, width: `${cellSize * 10 + GAP * 9}px` }}>
-                {Array.from({ length: 100 }, (_, i) => {
-                  const row = Math.floor(i / 10);
-                  const col = i % 10;
-                  return (
-                    <div
-                      key={i}
-                      style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
-                      className={`rounded-sm cursor-pointer transition-colors ${cellColor(row, col)}`}
-                      onMouseEnter={() => handleHover(row, col)}
-                      onClick={() => handleClick(row, col)}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Imagens dos navios posicionados */}
-              {placed.map((ship) => (
-                <img
-                  key={ship.type}
-                  src={ship.img}
-                  alt={ship.type}
-                  className={`absolute pointer-events-none object-fill transition-opacity ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
-                  style={getShipStyle(ship)}
-                />
-              ))}
+                {/* Imagens dos navios posicionados */}
+                {placed.map((ship) => (
+                  <img
+                    key={ship.type}
+                    src={ship.img}
+                    alt={ship.type}
+                    className={`absolute pointer-events-none object-fill transition-opacity ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
+                    style={getShipStyle(ship)}
+                  />
+                ))}
+              </BoardGrid>
             </div>
 
             {/* Botão PRONTO */}

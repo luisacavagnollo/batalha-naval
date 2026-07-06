@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import ConnectionStatus from '../components/ConnectionStatus';
+import TurnIndicator from '../components/TurnIndicator';
+import EmotePanel from '../components/EmotePanel';
 
 const CELL_SIZE = 36;
 const CELL_SIZE_MOBILE = 28;
@@ -53,8 +55,6 @@ const SKINS = {
     { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate/destroyer_pirate.png' },
   ],
 };
-
-const EMOTES = ['👍', '😂', '😱', '😢', '💀', '🫡'];
 
 function detectShips(board) {
   if (!board) return [];
@@ -509,26 +509,7 @@ export default function Game() {
         <span className="text-[#5a5048] text-sm">{username}</span>
       </header>
 
-      <div className="w-full flex flex-col items-center justify-center h-20 sm:h-22">
-        <div className={`px-4 sm:px-8 py-2 sm:py-3 rounded-md text-sm sm:text-base font-bold tracking-wider uppercase font-[MedievalSharp] ${
-          gameFinished
-            ? (gameState?.winnerId === username
-              ? 'bg-[#8b6914]/20 border border-[#c4983c]/40 text-[#c4983c]'
-              : 'bg-[#8b1a1a]/20 border border-[#8b1a1a]/40 text-[#c45a4a]')
-            : gameState?.myTurn
-              ? 'bg-[#8b6914]/20 border border-[#c4983c]/40 text-[#c4983c] animate-pulse'
-              : 'bg-[#2a1f15] border border-[#3d2a1a]/30 text-[#5a5048]'
-        }`}>
-          {gameFinished
-            ? (gameState?.winnerId === username ? 'Vitória' : 'Derrota')
-            : gameState?.myTurn ? 'Sua vez — Ataque' : 'Aguardando oponente...'}
-        </div>
-        {gameState?.sunkShipType && gameState?.lastShotResult === 'SUNK' && (
-          <span className="text-[#c4983c] text-sm font-semibold mt-1">
-            {gameState.sunkShipType} afundado!
-          </span>
-        )}
-      </div>
+      <TurnIndicator gameFinished={gameFinished} gameState={gameState} username={username} />
 
       <div className="flex-1 flex items-center justify-center px-2 sm:px-4 pb-20">
         <div className="flex flex-col xl:flex-row items-center xl:items-stretch gap-6">
@@ -564,21 +545,7 @@ export default function Game() {
         </div>
       </div>
 
-      {emote && (
-        <div className="fixed top-24 right-8 bg-[#2a1f15] border border-[#c4983c]/40 px-5 py-3 rounded-2xl text-4xl animate-bounce shadow-xl">
-          {emote.emote}
-        </div>
-      )}
-
-      <div className="fixed bottom-0 left-0 right-0 flex justify-center py-4 bg-[#211a14]/90 backdrop-blur-sm border-t border-[#3d2a1a]/30 z-30">
-        <div className="flex gap-3 bg-[#2a1f15] px-6 py-3 rounded-lg border border-[#3d2a1a]/40">
-          {EMOTES.map(e => (
-            <button key={e} onClick={() => sendEmote(gameId, e)} className="text-2xl hover:scale-125 transition-transform active:scale-90">
-              {e}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EmotePanel onSendEmote={(e) => sendEmote(gameId, e)} receivedEmote={emote} />
     </div>
   );
 }
