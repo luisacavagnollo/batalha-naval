@@ -24,10 +24,14 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-            String token = extractToken(accessor);
-            if (token != null && jwtUtil.validateToken(token)) {
-                String username = jwtUtil.extractUsername(token);
-                accessor.setUser((Principal) () -> username);
+            try {
+                String token = extractToken(accessor);
+                if (token != null && !token.isEmpty() && jwtUtil.validateToken(token)) {
+                    String username = jwtUtil.extractUsername(token);
+                    accessor.setUser((Principal) () -> username);
+                }
+            } catch (Exception e) {
+                // Token inválido — conexão continua sem autenticação
             }
         }
         return message;

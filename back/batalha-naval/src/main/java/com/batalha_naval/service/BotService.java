@@ -68,14 +68,17 @@ public class BotService {
     }
 
     /**
-     * Quando afunda um navio, remove os hits desse navio da lista ativa.
+     * Quando afunda um navio, remove APENAS os hits desse navio da lista ativa.
+     * Usa as coordenadas reais do navio afundado (fornecidas pelo ShotOutcome).
      */
     public void registerSunk(String gameId, int row, int col) {
         List<int[]> hits = activeHits.get(gameId);
         if (hits == null) return;
 
-        // Encontra todos os hits conectados ao ponto afundado e remove
-        Set<String> sunkCells = findConnectedHits(hits, row, col);
+        // Encontrar o cluster linear (horizontal ou vertical) que contém (row, col)
+        // Um navio é sempre uma linha reta, então filtramos apenas hits na mesma
+        // linha ou coluna que formam uma sequência contígua com (row, col).
+        Set<String> sunkCells = findLinearCluster(hits, row, col);
         hits.removeIf(h -> sunkCells.contains(h[0] + "," + h[1]));
     }
 
@@ -85,67 +88,255 @@ public class BotService {
     }
 
     /**
-     * Target mode: com base nos hits ativos, deduz a orientação e atira nas pontas.
+     * Target mode: trata cada cluster de hits separadamente.
+     * Prioriza clusters maiores (mais perto de afundar).
      */
     private int[] chooseTargetShot(List<int[]> hits, boolean[][] shots) {
-        if (hits.size() == 1) {
-            // Apenas 1 hit: tenta as 4 direções adjacentes
-            return chooseAdjacentShot(hits.get(0), shots);
+        // Agrupar hits em clusters lineares (por linha ou coluna)
+        List<List<int[]>> clusters = findClusters(hits);
+
+        // Ordenar: clusters maiores primeiro (prioridade para quase-afundados)
+        clusters.sort((a, b) -> b.size() - a.size());
+
+        for (List<int[]> cluster : clusters) {
+            int[] shot = chooseTargetForCluster(cluster, shots);
+            if (shot != null) return shot;
         }
 
-        // 2+ hits: detectar orientação
-        // Ordenar hits para encontrar a linha do navio
-        int[] first = hits.get(0);
-        boolean horizontal = false;
-        boolean vertical = false;
-
-        for (int i = 1; i < hits.size(); i++) {
-            if (hits.get(i)[0] == first[0]) horizontal = true;
-            if (hits.get(i)[1] == first[1]) vertical = true;
+        // Fallback: tentar adjacentes de qualquer hit individual
+        List<int[]> shuffled = new ArrayList<>(hits);
+        Collections.shuffle(shuffled, random);
+        for (int[] hit : shuffled) {
+            int[] shot = chooseAdjacentShot(hit, shots);
+            if (shot != null) return shot;
         }
 
-        if (horizontal) {
-            // Navio horizontal: encontrar min/max col na mesma row
-            int row = first[0];
+        return null;
+    }
+
+    /**
+     * Para um cluster específico, decide onde atirar.
+     */
+    private int[] chooseTargetForCluster(List<int[]> cluster, boolean[][] shots) {
+        if (cluster.size() == 1) {
+            return chooseAdjacentShot(cluster.get(0), shots);
+        }
+
+        // Detectar orientação do cluster
+        boolean sameRow = true;
+        boolean sameCol = true;
+        int refRow = cluster.get(0)[0];
+        int refCol = cluster.get(0)[1];
+
+        for (int[] h : cluster) {
+            if (h[0] != refRow) sameRow = false;
+            if (h[1] != refCol) sameCol = false;
+        }
+
+        if (sameRow) {
+            // Horizontal: expandir nas pontas
+            int row = refRow;
             int minCol = Integer.MAX_VALUE, maxCol = Integer.MIN_VALUE;
-            for (int[] h : hits) {
-                if (h[0] == row) {
-                    minCol = Math.min(minCol, h[1]);
-                    maxCol = Math.max(maxCol, h[1]);
-                }
+            for (int[] h : cluster) {
+                minCol = Math.min(minCol, h[1]);
+                maxCol = Math.max(maxCol, h[1]);
             }
-            // Tentar expandir para a direita
-            if (maxCol + 1 < 10 && !shots[row][maxCol + 1]) {
-                return new int[]{row, maxCol + 1};
-            }
-            // Tentar expandir para a esquerda
-            if (minCol - 1 >= 0 && !shots[row][minCol - 1]) {
-                return new int[]{row, minCol - 1};
+
+            // Shufflar direção para não ser previsível
+            if (random.nextBoolean()) {
+                if (maxCol + 1 < 10 && !shots[row][maxCol + 1]) return new int[]{row, maxCol + 1};
+                if (minCol - 1 >= 0 && !shots[row][minCol - 1]) return new int[]{row, minCol - 1};
+            } else {
+                if (minCol - 1 >= 0 && !shots[row][minCol - 1]) return new int[]{row, minCol - 1};
+                if (maxCol + 1 < 10 && !shots[row][maxCol + 1]) return new int[]{row, maxCol + 1};
             }
         }
 
-        if (vertical) {
-            // Navio vertical: encontrar min/max row na mesma col
-            int col = first[1];
+        if (sameCol) {
+            // Vertical: expandir nas pontas
+            int col = refCol;
             int minRow = Integer.MAX_VALUE, maxRow = Integer.MIN_VALUE;
-            for (int[] h : hits) {
-                if (h[1] == col) {
-                    minRow = Math.min(minRow, h[0]);
-                    maxRow = Math.max(maxRow, h[0]);
-                }
+            for (int[] h : cluster) {
+                minRow = Math.min(minRow, h[0]);
+                maxRow = Math.max(maxRow, h[0]);
             }
-            // Tentar expandir para baixo
-            if (maxRow + 1 < 10 && !shots[maxRow + 1][col]) {
-                return new int[]{maxRow + 1, col};
-            }
-            // Tentar expandir para cima
-            if (minRow - 1 >= 0 && !shots[minRow - 1][col]) {
-                return new int[]{minRow - 1, col};
+
+            if (random.nextBoolean()) {
+                if (maxRow + 1 < 10 && !shots[maxRow + 1][col]) return new int[]{maxRow + 1, col};
+                if (minRow - 1 >= 0 && !shots[minRow - 1][col]) return new int[]{minRow - 1, col};
+            } else {
+                if (minRow - 1 >= 0 && !shots[minRow - 1][col]) return new int[]{minRow - 1, col};
+                if (maxRow + 1 < 10 && !shots[maxRow + 1][col]) return new int[]{maxRow + 1, col};
             }
         }
 
-        // Fallback: tenta adjacentes do primeiro hit
-        return chooseAdjacentShot(first, shots);
+        // Cluster não é linear (L-shape possível com navios adjacentes) — tratar como hits individuais
+        for (int[] h : cluster) {
+            int[] shot = chooseAdjacentShot(h, shots);
+            if (shot != null) return shot;
+        }
+
+        return null;
+    }
+
+    /**
+     * Agrupa hits em clusters de adjacência, mas apenas lineares (mesma row OU mesma col).
+     * Hits que não estão na mesma linha/coluna com vizinhos formam clusters de 1.
+     */
+    private List<List<int[]>> findClusters(List<int[]> hits) {
+        if (hits.isEmpty()) return new ArrayList<>();
+
+        Set<String> remaining = new HashSet<>();
+        Map<String, int[]> lookup = new HashMap<>();
+        for (int[] h : hits) {
+            String key = h[0] + "," + h[1];
+            remaining.add(key);
+            lookup.put(key, h);
+        }
+
+        List<List<int[]>> clusters = new ArrayList<>();
+
+        while (!remaining.isEmpty()) {
+            String start = remaining.iterator().next();
+            int[] startCell = lookup.get(start);
+
+            // BFS para encontrar grupo conectado
+            Set<String> visited = new HashSet<>();
+            Queue<String> queue = new LinkedList<>();
+            queue.add(start);
+            visited.add(start);
+
+            while (!queue.isEmpty()) {
+                String cell = queue.poll();
+                int[] coords = lookup.get(cell);
+                int[][] dirs = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+                for (int[] dir : dirs) {
+                    String neighbor = (coords[0] + dir[0]) + "," + (coords[1] + dir[1]);
+                    if (remaining.contains(neighbor) && !visited.contains(neighbor)) {
+                        visited.add(neighbor);
+                        queue.add(neighbor);
+                    }
+                }
+            }
+
+            // Agora, dentro desse grupo conectado, separar em sub-clusters lineares
+            List<int[]> group = new ArrayList<>();
+            for (String key : visited) {
+                group.add(lookup.get(key));
+                remaining.remove(key);
+            }
+
+            // Se todos estão na mesma row ou col, é um cluster linear
+            if (isLinear(group)) {
+                clusters.add(group);
+            } else {
+                // Separar: tentar extrair linhas horizontais e verticais
+                List<List<int[]>> subClusters = splitIntoLinearClusters(group);
+                clusters.addAll(subClusters);
+            }
+        }
+
+        return clusters;
+    }
+
+    private boolean isLinear(List<int[]> group) {
+        if (group.size() <= 1) return true;
+        boolean sameRow = true, sameCol = true;
+        int r0 = group.get(0)[0], c0 = group.get(0)[1];
+        for (int[] h : group) {
+            if (h[0] != r0) sameRow = false;
+            if (h[1] != c0) sameCol = false;
+        }
+        return sameRow || sameCol;
+    }
+
+    /**
+     * Quando um grupo de hits forma um L ou T (navios adjacentes),
+     * separa em segmentos lineares independentes.
+     */
+    private List<List<int[]>> splitIntoLinearClusters(List<int[]> group) {
+        List<List<int[]>> result = new ArrayList<>();
+
+        // Agrupar por row
+        Map<Integer, List<int[]>> byRow = new HashMap<>();
+        Map<Integer, List<int[]>> byCol = new HashMap<>();
+        for (int[] h : group) {
+            byRow.computeIfAbsent(h[0], k -> new ArrayList<>()).add(h);
+            byCol.computeIfAbsent(h[1], k -> new ArrayList<>()).add(h);
+        }
+
+        Set<String> assigned = new HashSet<>();
+
+        // Extrair segmentos horizontais contíguos (≥2 cells)
+        for (Map.Entry<Integer, List<int[]>> entry : byRow.entrySet()) {
+            List<int[]> rowHits = entry.getValue();
+            if (rowHits.size() < 2) continue;
+            rowHits.sort(Comparator.comparingInt(h -> h[1]));
+
+            List<int[]> segment = new ArrayList<>();
+            segment.add(rowHits.get(0));
+            for (int i = 1; i < rowHits.size(); i++) {
+                if (rowHits.get(i)[1] == rowHits.get(i - 1)[1] + 1) {
+                    segment.add(rowHits.get(i));
+                } else {
+                    if (segment.size() >= 2) {
+                        result.add(new ArrayList<>(segment));
+                        for (int[] h : segment) assigned.add(h[0] + "," + h[1]);
+                    }
+                    segment = new ArrayList<>();
+                    segment.add(rowHits.get(i));
+                }
+            }
+            if (segment.size() >= 2) {
+                result.add(new ArrayList<>(segment));
+                for (int[] h : segment) assigned.add(h[0] + "," + h[1]);
+            }
+        }
+
+        // Extrair segmentos verticais contíguos (≥2 cells, não já atribuídos)
+        for (Map.Entry<Integer, List<int[]>> entry : byCol.entrySet()) {
+            List<int[]> colHits = entry.getValue();
+            if (colHits.size() < 2) continue;
+            colHits.sort(Comparator.comparingInt(h -> h[0]));
+
+            List<int[]> segment = new ArrayList<>();
+            segment.add(colHits.get(0));
+            for (int i = 1; i < colHits.size(); i++) {
+                if (colHits.get(i)[0] == colHits.get(i - 1)[0] + 1) {
+                    segment.add(colHits.get(i));
+                } else {
+                    List<int[]> unassigned = new ArrayList<>();
+                    for (int[] h : segment) {
+                        if (!assigned.contains(h[0] + "," + h[1])) unassigned.add(h);
+                    }
+                    if (unassigned.size() >= 2) {
+                        result.add(unassigned);
+                        for (int[] h : unassigned) assigned.add(h[0] + "," + h[1]);
+                    }
+                    segment = new ArrayList<>();
+                    segment.add(colHits.get(i));
+                }
+            }
+            List<int[]> unassigned = new ArrayList<>();
+            for (int[] h : segment) {
+                if (!assigned.contains(h[0] + "," + h[1])) unassigned.add(h);
+            }
+            if (unassigned.size() >= 2) {
+                result.add(unassigned);
+                for (int[] h : unassigned) assigned.add(h[0] + "," + h[1]);
+            }
+        }
+
+        // Hits restantes que não pertencem a nenhum segmento linear → clusters de 1
+        for (int[] h : group) {
+            if (!assigned.contains(h[0] + "," + h[1])) {
+                List<int[]> single = new ArrayList<>();
+                single.add(h);
+                result.add(single);
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -184,34 +375,51 @@ public class BotService {
     }
 
     /**
-     * Encontra todos os hits conectados (mesmo navio) a partir de um ponto.
+     * Encontra o cluster linear (segmento reto) que contém (row, col).
+     * Usado no registerSunk para remover apenas o navio afundado, sem afetar adjacentes.
      */
-    private Set<String> findConnectedHits(List<int[]> hits, int row, int col) {
+    private Set<String> findLinearCluster(List<int[]> hits, int row, int col) {
         Set<String> hitSet = new HashSet<>();
         for (int[] h : hits) hitSet.add(h[0] + "," + h[1]);
 
-        Set<String> connected = new HashSet<>();
-        Queue<String> queue = new LinkedList<>();
-        String start = row + "," + col;
-        queue.add(start);
-        connected.add(start);
-
-        while (!queue.isEmpty()) {
-            String cell = queue.poll();
-            String[] parts = cell.split(",");
-            int r = Integer.parseInt(parts[0]);
-            int c = Integer.parseInt(parts[1]);
-
-            int[][] dirs = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
-            for (int[] dir : dirs) {
-                String neighbor = (r + dir[0]) + "," + (c + dir[1]);
-                if (hitSet.contains(neighbor) && !connected.contains(neighbor)) {
-                    connected.add(neighbor);
-                    queue.add(neighbor);
-                }
-            }
+        String target = row + "," + col;
+        if (!hitSet.contains(target)) {
+            // O ponto do último tiro pode não estar em activeHits se foi adicionado
+            // depois. Adicionar temporariamente para a busca.
+            hitSet.add(target);
         }
 
-        return connected;
+        // Tentar expansão horizontal
+        Set<String> horizontal = new HashSet<>();
+        horizontal.add(target);
+        // Expandir para a direita
+        int c = col + 1;
+        while (c < 10 && hitSet.contains(row + "," + c)) {
+            horizontal.add(row + "," + c);
+            c++;
+        }
+        // Expandir para a esquerda
+        c = col - 1;
+        while (c >= 0 && hitSet.contains(row + "," + c)) {
+            horizontal.add(row + "," + c);
+            c--;
+        }
+
+        // Tentar expansão vertical
+        Set<String> vertical = new HashSet<>();
+        vertical.add(target);
+        int r = row + 1;
+        while (r < 10 && hitSet.contains(r + "," + col)) {
+            vertical.add(r + "," + col);
+            r++;
+        }
+        r = row - 1;
+        while (r >= 0 && hitSet.contains(r + "," + col)) {
+            vertical.add(r + "," + col);
+            r--;
+        }
+
+        // Retornar o maior cluster (mais provável de ser o navio real)
+        return horizontal.size() >= vertical.size() ? horizontal : vertical;
     }
 }

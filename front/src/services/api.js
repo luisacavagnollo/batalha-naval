@@ -28,3 +28,43 @@ export async function fetchStats(token) {
   if (!res.ok) return null;
   return res.json();
 }
+
+export async function fetchProfile(token) {
+  const res = await fetch(`${API_URL}/api/profile/me`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    window.location.href = '/';
+    return null;
+  }
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function fetchShopSkins(token) {
+  const res = await fetch(`${API_URL}/api/shop/skins`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function buySkin(token, skinId) {
+  const res = await fetch(`${API_URL}/api/shop/buy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ skinId }),
+  });
+  return res.json();
+}
+
+export async function equipSkin(token, skinId) {
+  const res = await fetch(`${API_URL}/api/profile/equip`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ skinId }),
+  });
+  return res.json();
+}

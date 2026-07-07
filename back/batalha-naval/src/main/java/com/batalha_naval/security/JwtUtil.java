@@ -38,9 +38,10 @@ public class JwtUtil {
 
     public boolean validateToken(String token) {
         try {
+            if (token == null || token.isEmpty()) return false;
             Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token);
             return true;
-        } catch (JwtException e) {
+        } catch (Exception e) {
             return false;
         }
     }

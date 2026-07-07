@@ -19,6 +19,15 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
+    private int moedas = 0;
+
+    @Column(nullable = false)
+    private String skinEquipada = "padrao_antigo";
+
+    @Column(nullable = false)
+    private String skinsAdquiridas = "padrao_antigo,pirate";
+
     public User() {
     }
 
@@ -59,5 +68,29 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public int getMoedas() {
+        return moedas;
+    }
+
+    public void setMoedas(int moedas) {
+        this.moedas = moedas;
+    }
+
+    public String getSkinEquipada() {
+        return skinEquipada;
+    }
+
+    public void setSkinEquipada(String skinEquipada) {
+        this.skinEquipada = skinEquipada;
+    }
+
+    public String getSkinsAdquiridas() {
+        return skinsAdquiridas;
+    }
+
+    public void setSkinsAdquiridas(String skinsAdquiridas) {
+        this.skinsAdquiridas = skinsAdquiridas;
     }
 }

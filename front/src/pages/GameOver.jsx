@@ -11,11 +11,13 @@ export default function GameOver() {
   const token = localStorage.getItem('token');
   const isVictory = winner === username;
   const navigate = useNavigate();
-  const { connect, requestRematch, rematchGameId, resetGame, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, requestRematch, rematchGameId, rematchPending, rematchRequested, resetGame, subscribeToGame, connectionStatus, reconnectInfo } = useGame(token);
 
   useEffect(() => {
-    connect();
-  }, [connect]);
+    connect().then(() => {
+      if (gameId) subscribeToGame(gameId);
+    }).catch(() => {});
+  }, [connect, gameId, subscribeToGame]);
 
   useEffect(() => {
     if (rematchGameId) {
@@ -33,6 +35,9 @@ export default function GameOver() {
     resetGame();
     navigate('/lobby');
   };
+
+  const showWaiting = rematchPending && !rematchRequested;
+  const showOpponentWants = rematchRequested && !rematchPending;
 
   return (
     <div className="min-h-screen bg-[#211a14] flex flex-col">
@@ -57,15 +62,33 @@ export default function GameOver() {
               : `${winner} venceu esta partida.`}
           </p>
 
+          {/* Notificação de que o oponente quer jogar novamente */}
+          {showOpponentWants && (
+            <div className="w-full mb-4 px-4 py-3 rounded-md bg-[#8b6914]/15 border border-[#c4983c]/30 text-center">
+              <p className="text-[#c4983c] text-sm font-medium">⚔️ Seu oponente quer jogar novamente!</p>
+            </div>
+          )}
+
           {/* Botões */}
           <div className="w-full flex flex-col gap-3">
             {gameId && (
-              <button
-                onClick={handleRematch}
-                className="w-full py-3.5 rounded-md bg-[#8b6914] text-[#211a14] text-sm font-bold tracking-wider uppercase hover:bg-[#c4983c] transition-colors font-[MedievalSharp]"
-              >
-                Jogar novamente
-              </button>
+              <>
+                {showWaiting ? (
+                  <button
+                    disabled
+                    className="w-full py-3.5 rounded-md bg-[#3d2a1a]/40 text-[#5a5048] text-sm font-bold tracking-wider uppercase font-[MedievalSharp] cursor-not-allowed"
+                  >
+                    Aguardando oponente...
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRematch}
+                    className="w-full py-3.5 rounded-md bg-[#8b6914] text-[#211a14] text-sm font-bold tracking-wider uppercase hover:bg-[#c4983c] transition-colors font-[MedievalSharp]"
+                  >
+                    {showOpponentWants ? 'Aceitar revanche' : 'Jogar novamente'}
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={handleLobby}

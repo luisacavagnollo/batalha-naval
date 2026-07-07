@@ -1,18 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { useSound } from '../hooks/useSound';
 import ConnectionStatus from '../components/ConnectionStatus';
-import { fetchStats } from '../services/api';
+import WaitingScreen from '../components/WaitingScreen';
+import ProfileModal from '../components/ProfileModal';
+import ShopModal from '../components/ShopModal';
+import { fetchStats, fetchProfile } from '../services/api';
 
 export default function Lobby() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const [code, setCode] = useState('');
   const [stats, setStats] = useState(null);
-  const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame, connectionStatus, reconnectInfo } = useGame(token);
+  const [moedas, setMoedas] = useState(0);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showShop, setShowShop] = useState(false);
+  const dropdownRef = useRef(null);
+  const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame, connectionStatus, reconnectInfo, joinMatchmaking, leaveMatchmaking } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const navigate = useNavigate();
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    resetGame();
+    fetchStats(token).then(data => { if (data) setStats(data); });
+    fetchProfile(token).then(data => { if (data) setMoedas(data.moedas); });
+  }, [resetGame, token]);
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    navigate('/');
+  };
 
   useEffect(() => {
     resetGame();
@@ -21,31 +53,64 @@ export default function Lobby() {
 
   useEffect(() => {
     if (gameState?.gameId && gameState.phase !== 'FINISHED') {
+      setSearching(false);
       navigate(`/place-ships/${gameState.gameId}`);
     }
   }, [gameState, navigate]);
 
   useEffect(() => {
-    if (roomCode) subscribeToGame(roomCode);
+    if (roomCode) {
+      setSearching(false);
+      subscribeToGame(roomCode);
+    }
   }, [roomCode, subscribeToGame]);
 
   const handleCreate = async () => {
     play('click');
-    await connect();
-    createRoom();
+    try {
+      await connect();
+      createRoom();
+    } catch (err) {
+      console.error('Falha ao conectar:', err.message);
+    }
   };
 
   const handleSinglePlayer = async () => {
     play('click');
-    await connect();
-    startSinglePlayer();
+    try {
+      await connect();
+      startSinglePlayer();
+    } catch (err) {
+      console.error('Falha ao conectar:', err.message);
+    }
   };
 
   const handleJoin = async () => {
     if (!code.trim()) return;
     play('click');
-    await connect();
-    joinRoom(code.trim());
+    try {
+      await connect();
+      joinRoom(code.trim());
+    } catch (err) {
+      console.error('Falha ao conectar:', err.message);
+    }
+  };
+
+  const handleMatchmaking = async () => {
+    play('click');
+    try {
+      await connect();
+      setSearching(true);
+      joinMatchmaking();
+    } catch (err) {
+      console.error('Falha ao conectar:', err.message);
+      setSearching(false);
+    }
+  };
+
+  const handleCancelMatchmaking = () => {
+    leaveMatchmaking();
+    setSearching(false);
   };
 
   return (
@@ -53,7 +118,20 @@ export default function Lobby() {
       <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
       <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          {/* Moedas */}
+          <span className="text-[#c4983c] text-sm font-bold">🪙 {moedas}</span>
+
+          {/* Loja */}
+          <button
+            onClick={() => { play('click'); setShowShop(true); }}
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            title="Loja"
+          >
+            🛒
+          </button>
+
+          {/* Mute */}
           <button
             onClick={toggleMute}
             className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
@@ -61,7 +139,34 @@ export default function Lobby() {
           >
             {muted ? '🔇' : '🔊'}
           </button>
-          <span className="text-[#5a5048] text-sm">{username}</span>
+
+          {/* Username dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="text-[#5a5048] text-sm hover:text-[#c4983c] transition-colors flex items-center gap-1"
+            >
+              {username}
+              <span className="text-xs">▼</span>
+            </button>
+            {showDropdown && (
+              <div className="absolute right-0 top-full mt-2 bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-md shadow-xl overflow-hidden min-w-[150px] z-50">
+                <button
+                  onClick={() => { setShowDropdown(false); setShowProfile(true); }}
+                  className="w-full px-4 py-2.5 text-left text-[#e8d5b0] text-sm hover:bg-[#c4983c]/10 hover:text-[#c4983c] transition-colors"
+                >
+                  Meu Perfil
+                </button>
+                <div className="h-px bg-[#3d2a1a]/40" />
+                <button
+                  onClick={handleLogout}
+                  className="w-full px-4 py-2.5 text-left text-[#c45a4a] text-sm hover:bg-[#8b1a1a]/10 transition-colors"
+                >
+                  Sair da conta
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -118,25 +223,30 @@ export default function Lobby() {
           {/* Ações */}
           <div className="flex-1 flex items-center">
             <div className="w-full">
-              {roomCode ? (
-                <div className="flex flex-col items-center">
-                  <p className="text-[#c4b28a] text-xs font-bold tracking-wider uppercase mb-4 font-[MedievalSharp]">Código da sala</p>
-                  <div className="text-4xl font-mono font-black tracking-[0.4em] text-[#c4983c] mb-6">
-                    {roomCode}
+              {roomCode && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
+                  <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 flex flex-col items-center gap-6 max-w-sm mx-4 shadow-2xl">
+                    <WaitingScreen
+                      title="Código da sala"
+                      subtitle={roomCode}
+                      description="Compartilhe este código com seu oponente"
+                      onCancel={() => resetGame()}
+                    />
                   </div>
-                  <p className="text-[#5a5048] text-sm mb-6">Compartilhe este código com seu oponente</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#c4983c] animate-pulse"></div>
-                    <span className="text-[#c4b28a] text-sm">Aguardando conexão...</span>
-                  </div>
-                  <button
-                    onClick={() => resetGame()}
-                    className="mt-6 px-5 py-2.5 rounded-md border border-[#8b1a1a]/50 text-[#c45a4a] text-xs font-bold tracking-wider uppercase hover:bg-[#8b1a1a]/20 hover:border-[#8b1a1a] transition-colors"
-                  >
-                    Cancelar
-                  </button>
                 </div>
-              ) : (
+              )}
+              {searching && !roomCode && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
+                  <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 flex flex-col items-center gap-6 max-w-sm mx-4 shadow-2xl">
+                    <WaitingScreen
+                      title="Partida Aleatória"
+                      description="Procurando um oponente digno..."
+                      onCancel={handleCancelMatchmaking}
+                    />
+                  </div>
+                </div>
+              )}
+              {!roomCode && (
                 <div className="flex flex-col gap-4">
                   <button
                     onClick={handleCreate}
@@ -150,6 +260,13 @@ export default function Lobby() {
                     className="w-full py-3.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-sm font-bold tracking-wider uppercase hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors font-[MedievalSharp]"
                   >
                     Jogar solo
+                  </button>
+
+                  <button
+                    onClick={handleMatchmaking}
+                    className="w-full py-3.5 rounded-md bg-[#0f2640] border border-[#1a3a5c]/60 text-[#e8d5b0] text-sm font-bold tracking-wider uppercase hover:bg-[#1a3a5c] hover:border-[#c4983c]/40 transition-colors font-[MedievalSharp]"
+                  >
+                    ⚔️ Partida Aleatória
                   </button>
 
                   <div className="flex items-center gap-4 my-2">
@@ -185,6 +302,10 @@ export default function Lobby() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
+      {showShop && <ShopModal onClose={() => setShowShop(false)} onBalanceChange={(m) => setMoedas(m)} />}
     </div>
   );
 }

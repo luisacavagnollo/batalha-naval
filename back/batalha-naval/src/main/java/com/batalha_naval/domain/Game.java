@@ -1,5 +1,8 @@
 package com.batalha_naval.domain;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class Game {
     private String id;
     private String player1Id;
@@ -11,12 +14,16 @@ public class Game {
     private String winnerId;
     private ShotOutcome lastShotOutcome;
     private String player1Skin; // "padrao" ou "pirate"
+    private String player2Skin; // skin do player2
     private long lastActivity = System.currentTimeMillis();
+    private final Set<String> rematchRequestedBy = ConcurrentHashMap.newKeySet();
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getPlayer1Skin() { return player1Skin; }
     public void setPlayer1Skin(String player1Skin) { this.player1Skin = player1Skin; }
+    public String getPlayer2Skin() { return player2Skin; }
+    public void setPlayer2Skin(String player2Skin) { this.player2Skin = player2Skin; }
     public String getPlayer1Id() { return player1Id; }
     public void setPlayer1Id(String player1Id) { this.player1Id = player1Id; }
     public String getPlayer2Id() { return player2Id; }
@@ -71,6 +78,15 @@ public class Game {
 
     public String getOpponentId(String playerId) {
         return playerId.equals(player1Id) ? player2Id : player1Id;
+    }
+
+    public boolean requestRematch(String playerId) {
+        rematchRequestedBy.add(playerId);
+        return rematchRequestedBy.contains(player1Id) && rematchRequestedBy.contains(player2Id);
+    }
+
+    public boolean hasRequestedRematch(String playerId) {
+        return rematchRequestedBy.contains(playerId);
     }
 
     private Board getBoardForPlayer(String playerId) {

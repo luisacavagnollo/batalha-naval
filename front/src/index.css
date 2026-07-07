@@ -11,6 +11,17 @@
   to { left: -10%; }
 }
 
+@keyframes compass-spin {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  30% { transform: rotate(85deg); }
+  50% { transform: rotate(180deg); }
+  55% { transform: rotate(175deg); }
+  75% { transform: rotate(270deg); }
+  80% { transform: rotate(265deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Reset de cores do scrollbar para combinar com o tema */
 ::-webkit-scrollbar {
   width: 6px;

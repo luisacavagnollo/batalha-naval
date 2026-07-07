@@ -12,6 +12,8 @@ const initialState = {
   emote: null,
   connected: false,
   rematchGameId: null,
+  rematchPending: false,       // eu pedi rematch, aguardando oponente
+  rematchRequested: false,     // oponente pediu rematch
   connectionStatus: 'disconnected', // 'connected' | 'disconnected' | 'reconnecting'
   reconnectInfo: null,
 };
@@ -30,6 +32,10 @@ function gameReducer(state, action) {
       return { ...state, connected: action.payload };
     case 'SET_REMATCH_GAME_ID':
       return { ...state, rematchGameId: action.payload };
+    case 'SET_REMATCH_PENDING':
+      return { ...state, rematchPending: action.payload };
+    case 'SET_REMATCH_REQUESTED':
+      return { ...state, rematchRequested: action.payload };
     case 'SET_CONNECTION_STATUS':
       return { ...state, connectionStatus: action.payload };
     case 'SET_RECONNECT_INFO':
@@ -42,6 +48,8 @@ function gameReducer(state, action) {
         error: null,
         emote: null,
         rematchGameId: null,
+        rematchPending: false,
+        rematchRequested: false,
       };
     default:
       return state;
@@ -101,6 +109,8 @@ export function GameProvider({ children }) {
         dispatch({ type: 'SET_REMATCH_GAME_ID', payload: data.gameId });
       } else if (data.singlePlayer) {
         subscribeToGame(data.gameId);
+      } else if (data.matchmaking) {
+        subscribeToGame(data.gameId);
       } else {
         dispatch({ type: 'SET_ROOM_CODE', payload: data.gameId });
       }
@@ -118,6 +128,12 @@ export function GameProvider({ children }) {
       });
       client.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
         handleEmoteReceived(JSON.parse(msg.body));
+      });
+      client.subscribe(`/user/topic/game/${gameId}/rematch-request`, () => {
+        dispatch({ type: 'SET_REMATCH_REQUESTED', payload: true });
+      });
+      client.subscribe(`/user/topic/game/${gameId}/rematch-pending`, () => {
+        dispatch({ type: 'SET_REMATCH_PENDING', payload: true });
       });
     });
   }, []);
@@ -171,11 +187,27 @@ export function GameProvider({ children }) {
     connectedPromiseRef.current = null;
 
     connectedPromiseRef.current = new Promise((resolve, reject) => {
+      let settled = false;
+
+      // Timeout de 10s para a conexão inicial
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          connectedPromiseRef.current = null;
+          try { client.deactivate(); } catch (e) { /* ignore */ }
+          clientRef.current = null;
+          reject(new Error('Connection timeout'));
+        }
+      }, 10000);
+
       const client = new Client({
         brokerURL: WS_URL,
         connectHeaders: { token: tkn },
         reconnectDelay: 0,
         onConnect: () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
           dispatch({ type: 'SET_CONNECTED', payload: true });
           dispatch({ type: 'SET_CONNECTION_STATUS', payload: 'connected' });
           dispatch({ type: 'SET_RECONNECT_INFO', payload: null });
@@ -185,12 +217,25 @@ export function GameProvider({ children }) {
         },
         onStompError: (frame) => {
           console.error('STOMP error:', frame.headers?.message);
-          if (!isRetry) reject(new Error(frame.headers?.message || 'Connection failed'));
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeout);
+            connectedPromiseRef.current = null;
+            reject(new Error(frame.headers?.message || 'Connection failed'));
+          }
         },
         onWebSocketClose: () => {
           dispatch({ type: 'SET_CONNECTED', payload: false });
           clientRef.current = null;
-          connectedPromiseRef.current = null;
+
+          if (!settled) {
+            settled = true;
+            clearTimeout(timeout);
+            connectedPromiseRef.current = null;
+            reject(new Error('WebSocket closed before STOMP connected'));
+          } else {
+            connectedPromiseRef.current = null;
+          }
 
           if (tokenRef.current && !intentionalDisconnectRef.current && !isReconnectingRef.current) {
             scheduleReconnect();
@@ -245,6 +290,14 @@ export function GameProvider({ children }) {
 
     clientRef.current.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
       handleEmoteReceived(JSON.parse(msg.body));
+    });
+
+    clientRef.current.subscribe(`/user/topic/game/${gameId}/rematch-request`, () => {
+      dispatch({ type: 'SET_REMATCH_REQUESTED', payload: true });
+    });
+
+    clientRef.current.subscribe(`/user/topic/game/${gameId}/rematch-pending`, () => {
+      dispatch({ type: 'SET_REMATCH_PENDING', payload: true });
     });
   }, [handleEmoteReceived]);
 
@@ -301,6 +354,14 @@ export function GameProvider({ children }) {
     });
   }, []);
 
+  const joinMatchmaking = useCallback(() => {
+    clientRef.current?.publish({ destination: '/app/game/matchmaking/join', body: '{}' });
+  }, []);
+
+  const leaveMatchmaking = useCallback(() => {
+    clientRef.current?.publish({ destination: '/app/game/matchmaking/leave', body: '{}' });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -312,9 +373,11 @@ export function GameProvider({ children }) {
     connect, disconnect, resetGame, subscribeToGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
     shoot, sendEmote, requestRematch, surrender,
+    joinMatchmaking, leaveMatchmaking,
   }), [connect, disconnect, resetGame, subscribeToGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
-    shoot, sendEmote, requestRematch, surrender]);
+    shoot, sendEmote, requestRematch, surrender,
+    joinMatchmaking, leaveMatchmaking]);
 
   const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
 
@@ -350,6 +413,8 @@ export function useGame(token) {
     emote: state.emote,
     connected: state.connected,
     rematchGameId: state.rematchGameId,
+    rematchPending: state.rematchPending,
+    rematchRequested: state.rematchRequested,
     connectionStatus: state.connectionStatus,
     reconnectInfo: state.reconnectInfo,
     // Actions
@@ -365,6 +430,8 @@ export function useGame(token) {
     sendEmote: actions.sendEmote,
     requestRematch: actions.requestRematch,
     surrender: actions.surrender,
+    joinMatchmaking: actions.joinMatchmaking,
+    leaveMatchmaking: actions.leaveMatchmaking,
   };
 }
 

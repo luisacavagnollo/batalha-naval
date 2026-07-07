@@ -30,15 +30,50 @@ public class GameController {
 
     // Guarda quais games são singleplayer
     private final Set<String> singlePlayerGames = ConcurrentHashMap.newKeySet();
+    private final com.batalha_naval.service.MatchmakingService matchmakingService;
 
-    public GameController(GameService gameService, BotService botService, SimpMessagingTemplate messaging) {
+    public GameController(GameService gameService, BotService botService, SimpMessagingTemplate messaging, com.batalha_naval.service.MatchmakingService matchmakingService) {
         this.gameService = gameService;
         this.botService = botService;
         this.messaging = messaging;
+        this.matchmakingService = matchmakingService;
+    }
+
+    @MessageMapping("/game/matchmaking/join")
+    public void joinMatchmaking(Principal principal) {
+        if (principal == null) {
+            return; // Conexão não autenticada — ignorar
+        }
+        String playerId = principal.getName();
+        Game game = matchmakingService.joinQueue(playerId);
+
+        if (game != null) {
+            // Par encontrado — set player2 skin
+            game.setPlayer2Skin(gameService.getPlayerSkin(game.getPlayer2Id()));
+
+            // Notificar ambos os jogadores
+            String p1 = game.getPlayer1Id();
+            String p2 = game.getPlayer2Id();
+            Map<String, Object> payload = Map.of("gameId", game.getId(), "matchmaking", true);
+            messaging.convertAndSendToUser(p1, "/topic/game/created", payload);
+            messaging.convertAndSendToUser(p2, "/topic/game/created", payload);
+
+            // Enviar gameState após delay para dar tempo do frontend subscrever
+            scheduler.schedule(() -> sendGameStateToPlayers(game), 300, TimeUnit.MILLISECONDS);
+        }
+        // Se retornou null, jogador entrou na fila — aguarda
+    }
+
+    @MessageMapping("/game/matchmaking/leave")
+    public void leaveMatchmaking(Principal principal) {
+        if (principal == null) return;
+        String playerId = principal.getName();
+        matchmakingService.leaveQueue(playerId);
     }
 
     @MessageMapping("/game/create")
     public void createRoom(Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         Game game = gameService.createGame(playerId);
         messaging.convertAndSendToUser(playerId, "/topic/game/created",
@@ -47,6 +82,7 @@ public class GameController {
 
     @MessageMapping("/game/join")
     public void joinRoom(GameMessage msg, Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         try {
             Game game = gameService.joinGame(msg.getGameId(), playerId);
@@ -59,9 +95,11 @@ public class GameController {
 
     @MessageMapping("/game/single-player")
     public void startSinglePlayer(Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         Game game = gameService.createGame(playerId);
         game.setPlayer2Id(BotService.BOT_ID);
+        game.setPlayer2Skin("pirate");
         singlePlayerGames.add(game.getId());
 
         // Bot posiciona navios automaticamente
@@ -80,6 +118,7 @@ public class GameController {
 
     @MessageMapping("/game/place-ship")
     public void placeShip(GameMessage msg, Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         try {
             if (msg.getShipType() == null || msg.getOrientation() == null || msg.getGameId() == null) {
@@ -107,6 +146,7 @@ public class GameController {
 
     @MessageMapping("/game/shoot")
     public void shoot(GameMessage msg, Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         gameService.shoot(msg.getGameId(), playerId, msg.getRow(), msg.getCol());
         Game game = gameService.getGame(msg.getGameId());
@@ -120,6 +160,7 @@ public class GameController {
 
     @MessageMapping("/game/emote")
     public void sendEmote(EmoteMessage msg, Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         Game game = gameService.getGame(msg.getGameId());
         String opponentId = game.getOpponentId(playerId);
@@ -132,6 +173,7 @@ public class GameController {
 
     @MessageMapping("/game/surrender")
     public void surrender(GameMessage msg, Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         try {
             Game game = gameService.surrender(msg.getGameId(), playerId);
@@ -150,6 +192,7 @@ public class GameController {
 
     @MessageMapping("/game/rematch")
     public void rematch(GameMessage msg, Principal principal) {
+        if (principal == null) return;
         String playerId = principal.getName();
         try {
             Game oldGame = gameService.getGame(msg.getGameId());
@@ -159,14 +202,42 @@ public class GameController {
                         Map.of("message", "Você não faz parte desta partida"));
                 return;
             }
-            Game newGame = gameService.rematch(msg.getGameId());
-            // Notifica ambos os jogadores sobre o novo jogo
-            String p1 = newGame.getPlayer1Id();
-            String p2 = newGame.getPlayer2Id();
-            Map<String, Object> payload = Map.of("gameId", newGame.getId(), "rematch", true);
-            messaging.convertAndSendToUser(p1, "/topic/game/created", payload);
-            if (p2 != null && !p2.equals(BotService.BOT_ID)) {
-                messaging.convertAndSendToUser(p2, "/topic/game/created", payload);
+
+            // Se é singleplayer, cria imediatamente
+            if (singlePlayerGames.contains(msg.getGameId())) {
+                Game newGame = gameService.rematch(msg.getGameId());
+                singlePlayerGames.add(newGame.getId());
+                newGame.setPlayer2Id(BotService.BOT_ID);
+                newGame.setPlayer2Skin("pirate");
+                botService.placeShipsRandomly(newGame);
+                Map<String, Object> payload = Map.of("gameId", newGame.getId(), "rematch", true);
+                messaging.convertAndSendToUser(playerId, "/topic/game/created", payload);
+                return;
+            }
+
+            // Registrar pedido de rematch
+            boolean bothReady = oldGame.requestRematch(playerId);
+
+            if (bothReady) {
+                // Ambos aceitaram — criar nova partida
+                Game newGame = gameService.rematch(msg.getGameId());
+                String p1 = newGame.getPlayer1Id();
+                String p2 = newGame.getPlayer2Id();
+                Map<String, Object> payload = Map.of("gameId", newGame.getId(), "rematch", true);
+                messaging.convertAndSendToUser(p1, "/topic/game/created", payload);
+                if (p2 != null) {
+                    messaging.convertAndSendToUser(p2, "/topic/game/created", payload);
+                }
+            } else {
+                // Notificar o oponente que este jogador quer rematch
+                String opponentId = oldGame.getOpponentId(playerId);
+                if (opponentId != null) {
+                    messaging.convertAndSendToUser(opponentId, "/topic/game/" + msg.getGameId() + "/rematch-request",
+                            Map.of("from", playerId));
+                }
+                // Confirmar ao jogador que o pedido foi registrado
+                messaging.convertAndSendToUser(playerId, "/topic/game/" + msg.getGameId() + "/rematch-pending",
+                        Map.of("waiting", true));
             }
         } catch (Exception e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
@@ -239,9 +310,23 @@ public class GameController {
                 ? outcome.getSunkShipType().name() : null;
         java.util.List<int[]> sunkCells = outcome != null ? outcome.getSunkShipCells() : null;
 
-        // player1 usa player1Skin, player2 usa a outra
-        String p1Skin = game.getPlayer1Skin() != null ? game.getPlayer1Skin() : "padrao";
-        String mySkin = playerId.equals(game.getPlayer1Id()) ? p1Skin : (p1Skin.equals("padrao") ? "pirate" : "padrao");
+        // Each player uses their own equipped skin
+        String p1Skin = game.getPlayer1Skin() != null ? game.getPlayer1Skin() : "padrao_antigo";
+        String p2Skin = game.getPlayer2Skin() != null ? game.getPlayer2Skin() : "padrao_antigo";
+        String mySkin = playerId.equals(game.getPlayer1Id()) ? p1Skin : p2Skin;
+        String opponentSkin = playerId.equals(game.getPlayer1Id()) ? p2Skin : p1Skin;
+
+        // Construir lista de navios do jogador com posições reais
+        java.util.List<GameStateResponse.ShipInfo> myShips = myBoard.getShips().stream()
+                .map(ship -> new GameStateResponse.ShipInfo(
+                        ship.getType().name(),
+                        ship.getStartRow(),
+                        ship.getStartCol(),
+                        ship.getSize(),
+                        ship.getOrientation().name(),
+                        ship.isSunk()
+                ))
+                .collect(java.util.stream.Collectors.toList());
 
         // Revela tabuleiro do oponente quando o jogo termina
         CellState[][] opponentView = game.getPhase() == GamePhase.FINISHED
@@ -259,6 +344,8 @@ public class GameController {
                 lastResult,
                 sunkType,
                 mySkin,
-                sunkCells);
+                opponentSkin,
+                sunkCells,
+                myShips);
     }
 }

@@ -4,8 +4,10 @@ import com.batalha_naval.domain.*;
 import com.batalha_naval.dto.PlayerStatsResponse;
 import com.batalha_naval.model.GameRecord;
 import com.batalha_naval.model.PlayerStats;
+import com.batalha_naval.model.User;
 import com.batalha_naval.repository.GameRecordRepository;
 import com.batalha_naval.repository.PlayerStatsRepository;
+import com.batalha_naval.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -21,10 +23,12 @@ public class GameService {
 
     private final GameRecordRepository gameRecordRepository;
     private final PlayerStatsRepository playerStatsRepository;
+    private final UserRepository userRepository;
 
-    public GameService(GameRecordRepository gameRecordRepository, PlayerStatsRepository playerStatsRepository) {
+    public GameService(GameRecordRepository gameRecordRepository, PlayerStatsRepository playerStatsRepository, UserRepository userRepository) {
         this.gameRecordRepository = gameRecordRepository;
         this.playerStatsRepository = playerStatsRepository;
+        this.userRepository = userRepository;
     }
 
     public Game createGame(String playerId) {
@@ -32,7 +36,7 @@ public class GameService {
         String code = generateCode();
         game.setId(code);
         game.setPlayer1Id(playerId);
-        game.setPlayer1Skin(random.nextBoolean() ? "padrao" : "pirate");
+        game.setPlayer1Skin(getPlayerSkin(playerId));
         games.put(code, game);
         codeToGameId.put(code, code);
         return game;
@@ -50,6 +54,7 @@ public class GameService {
             throw new IllegalStateException("Você já está nesta sala");
         }
         game.setPlayer2Id(playerId);
+        game.setPlayer2Skin(getPlayerSkin(playerId));
         game.touchActivity();
         return game;
     }
@@ -115,6 +120,14 @@ public class GameService {
             }
             playerStatsRepository.save(stats2);
         }
+
+        // Adicionar 10 moedas ao vencedor
+        if (winner != null && !winner.equals("BOT")) {
+            userRepository.findByUsername(winner).ifPresent(user -> {
+                user.setMoedas(user.getMoedas() + 10);
+                userRepository.save(user);
+            });
+        }
     }
 
     public PlayerStatsResponse getPlayerStats(String playerId) {
@@ -169,10 +182,20 @@ public class GameService {
         newGame.setId(code);
         newGame.setPlayer1Id(oldGame.getPlayer1Id());
         newGame.setPlayer2Id(oldGame.getPlayer2Id());
-        newGame.setPlayer1Skin(random.nextBoolean() ? "padrao" : "pirate");
+        newGame.setPlayer1Skin(getPlayerSkin(oldGame.getPlayer1Id()));
+        newGame.setPlayer2Skin(getPlayerSkin(oldGame.getPlayer2Id()));
         games.put(code, newGame);
         codeToGameId.put(code, code);
         return newGame;
+    }
+
+    public String getPlayerSkin(String username) {
+        if (username == null || "BOT".equals(username)) {
+            return "pirate";
+        }
+        return userRepository.findByUsername(username)
+                .map(User::getSkinEquipada)
+                .orElse("padrao_antigo");
     }
 
     private String generateCode() {

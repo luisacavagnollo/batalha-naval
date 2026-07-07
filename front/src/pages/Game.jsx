@@ -41,7 +41,7 @@ function getOceanClass(row, col, cell, isSunkCell = false) {
 }
 
 const SKINS = {
-  padrao: [
+  padrao_antigo: [
     { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao_antigo/carrier_antigo.png' },
     { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao_antigo/battleship_antigo.png' },
     { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao_antigo/cruiser_antigo.png' },
@@ -55,57 +55,113 @@ const SKINS = {
     { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pirate/submarine_pirate.png' },
     { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate/destroyer_pirate.png' },
   ],
+  padrao: [
+    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao/carrier.png' },
+    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao/battleship.png' },
+    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao/cruiser.png' },
+    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao/submarine.png' },
+    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
+  ],
+  pirate_op: [
+    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/pirate_op/carrier_pirate_op.png' },
+    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/pirate_op/battleship_pirate_op.png' },
+    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/pirate_op/cruiser_pirate_op.png' },
+    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pirate_op/submarine_pirate_op.png' },
+    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate_op/destroyer_pirate_op.png' },
+  ],
 };
 
 function detectShips(board) {
   if (!board) return [];
   const visited = Array.from({ length: 10 }, () => Array(10).fill(false));
   const ships = [];
-  // Tamanhos válidos de navios no jogo
   const validSizes = [5, 4, 3, 3, 2];
   const remainingSizes = [...validSizes];
 
+  // Primeira passada: detectar navios priorizando a direção correta
+  // Estratégia: para cada célula não visitada, tentamos expandir em ambas direções
+  // mas escolhemos a direção que produz um tamanho válido (match exato com remainingSizes)
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 10; c++) {
       if (visited[r][c]) continue;
       if (board[r][c] !== 'SHIP' && board[r][c] !== 'HIT') continue;
 
-      // Tentar expandir horizontalmente
+      // Expandir horizontalmente (contando apenas células contíguas na MESMA LINHA)
       let hLen = 0;
       while (c + hLen < 10 && (board[r][c + hLen] === 'SHIP' || board[r][c + hLen] === 'HIT') && !visited[r][c + hLen]) {
         hLen++;
       }
 
-      // Tentar expandir verticalmente
+      // Expandir verticalmente (contando apenas células contíguas na MESMA COLUNA)
       let vLen = 0;
       while (r + vLen < 10 && (board[r + vLen][c] === 'SHIP' || board[r + vLen][c] === 'HIT') && !visited[r + vLen][c]) {
         vLen++;
       }
 
+      // Decidir a orientação baseado em qual tamanho é válido
       let chosenLen, orientation;
-      if (hLen >= 2 && hLen >= vLen) {
-        chosenLen = hLen;
-        orientation = 'HORIZONTAL';
-      } else if (vLen >= 2) {
-        chosenLen = vLen;
-        orientation = 'VERTICAL';
-      } else {
+
+      if (hLen <= 1 && vLen <= 1) {
+        // Célula isolada (tamanho 1)
         visited[r][c] = true;
         ships.push({ row: r, col: c, size: 1, orientation: 'HORIZONTAL' });
         continue;
       }
 
-      // Se o comprimento detectado é maior que o maior tamanho restante,
-      // significa que dois navios estão adjacentes. Usar o melhor match.
+      // Verificar qual direção produz um tamanho que existe nos remainingSizes
+      const hMatch = remainingSizes.includes(hLen);
+      const vMatch = remainingSizes.includes(vLen);
+
+      if (hLen >= 2 && vLen >= 2) {
+        // Ambas as direções são possíveis — decidir qual é o navio real
+        if (hMatch && !vMatch) {
+          // Apenas horizontal é um tamanho válido
+          chosenLen = hLen;
+          orientation = 'HORIZONTAL';
+        } else if (vMatch && !hMatch) {
+          // Apenas vertical é um tamanho válido
+          chosenLen = vLen;
+          orientation = 'VERTICAL';
+        } else {
+          // Ambos ou nenhum são válidos — usar heurística:
+          // Verificar se a expansão vertical é "real" (não é formada por navios horizontais adjacentes)
+          // Um navio vertical real não deveria ter expansão horizontal em suas células do meio
+          let isRealVertical = true;
+          for (let i = 1; i < vLen; i++) {
+            // Se a célula à esquerda ou à direita da coluna atual também é navio,
+            // provavelmente é outro navio horizontal, não uma continuação vertical
+            const leftHas = c > 0 && (board[r + i][c - 1] === 'SHIP' || board[r + i][c - 1] === 'HIT') && !visited[r + i][c - 1];
+            const rightHas = c < 9 && (board[r + i][c + 1] === 'SHIP' || board[r + i][c + 1] === 'HIT') && !visited[r + i][c + 1];
+            if (leftHas || rightHas) {
+              isRealVertical = false;
+              break;
+            }
+          }
+
+          if (!isRealVertical || hLen >= vLen) {
+            chosenLen = hLen;
+            orientation = 'HORIZONTAL';
+          } else {
+            chosenLen = vLen;
+            orientation = 'VERTICAL';
+          }
+        }
+      } else if (hLen >= 2) {
+        chosenLen = hLen;
+        orientation = 'HORIZONTAL';
+      } else {
+        chosenLen = vLen;
+        orientation = 'VERTICAL';
+      }
+
+      // Limitar ao maior tamanho válido restante se necessário
       let bestSize = chosenLen;
-      const sizeIdx = remainingSizes.indexOf(chosenLen);
-      if (sizeIdx === -1) {
-        // Tamanho exato não disponível — encontrar o maior tamanho restante que cabe
+      if (!remainingSizes.includes(chosenLen)) {
         const sorted = [...remainingSizes].sort((a, b) => b - a);
         bestSize = sorted.find(s => s <= chosenLen) || chosenLen;
       }
 
-      // Marcar células e registrar navio com bestSize
+      // Marcar células visitadas
       if (orientation === 'HORIZONTAL') {
         for (let i = 0; i < bestSize; i++) visited[r][c + i] = true;
       } else {
@@ -230,10 +286,38 @@ function ShipList({ ships, title, align, mobile }) {
   );
 }
 
-function MyBoard({ board, skinShips, cellSize }) {
+function MyBoard({ board, skinShips, cellSize, serverShips }) {
   if (!board) return null;
-  const detected = detectShips(board);
-  const ships = assignShipData(detected, board, skinShips);
+
+  // Usar posições reais do backend quando disponíveis, senão fallback para detecção
+  let ships;
+  if (serverShips && serverShips.length > 0) {
+    // Mapear navios do servidor para incluir a imagem correta da skin
+    const typeToImg = {};
+    let threeCount = 0;
+    for (const s of skinShips) {
+      if (s.size === 3) {
+        typeToImg[s.type + '_' + threeCount] = s.img;
+        threeCount++;
+      } else {
+        typeToImg[s.type] = s.img;
+      }
+    }
+    let serverThreeCount = 0;
+    ships = serverShips.map(s => {
+      let img;
+      if (s.size === 3) {
+        img = typeToImg[s.type + '_' + serverThreeCount] || skinShips.find(sk => sk.type === s.type)?.img;
+        serverThreeCount++;
+      } else {
+        img = typeToImg[s.type] || skinShips.find(sk => sk.type === s.type)?.img;
+      }
+      return { ...s, img };
+    });
+  } else {
+    const detected = detectShips(board);
+    ships = assignShipData(detected, board, skinShips);
+  }
 
   // Computar células de navios afundados
   const sunkCells = new Set();
@@ -502,10 +586,10 @@ export default function Game() {
     navigate('/lobby');
   };
 
-  const mySkin = gameState?.mySkin || 'padrao';
-  const opponentSkin = mySkin === 'padrao' ? 'pirate' : 'padrao';
-  const mySkinShips = SKINS[mySkin];
-  const opponentSkinShips = SKINS[opponentSkin];
+  const mySkin = gameState?.mySkin || 'padrao_antigo';
+  const opponentSkin = gameState?.opponentSkin || 'pirate';
+  const mySkinShips = SKINS[mySkin] || SKINS['padrao_antigo'];
+  const opponentSkinShips = SKINS[opponentSkin] || SKINS['padrao_antigo'];
 
   const myShipsStatus = getSunkStatus(gameState?.myBoard, mySkinShips);
   const opponentShipsStatus = opponentSkinShips.map(s => ({
@@ -573,7 +657,7 @@ export default function Game() {
               <div className="relative overflow-visible">
                 <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-3 sm:p-6 relative z-10">
                   <h2 className="text-center text-[#c4b28a]/50 text-xs font-medium tracking-wider mb-3 uppercase font-[MedievalSharp]">Meu Tabuleiro</h2>
-                  <MyBoard board={gameState?.myBoard} skinShips={mySkinShips} cellSize={cellSize} />
+                  <MyBoard board={gameState?.myBoard} skinShips={mySkinShips} cellSize={cellSize} serverShips={gameState?.myShips} />
                 </div>
               </div>
               <div className="relative overflow-visible">

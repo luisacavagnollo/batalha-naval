@@ -5,8 +5,9 @@ import { useSound } from '../hooks/useSound';
 import ConnectionStatus from '../components/ConnectionStatus';
 import ShipSelector from '../components/ShipSelector';
 import BoardGrid, { GAP } from '../components/BoardGrid';
+import WaitingScreen from '../components/WaitingScreen';
 
-const SHIPS_PADRAO = [
+const SHIPS_PADRAO_ANTIGO = [
   { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao_antigo/carrier_antigo.png' },
   { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao_antigo/battleship_antigo.png' },
   { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao_antigo/cruiser_antigo.png' },
@@ -21,6 +22,29 @@ const SHIPS_PIRATE = [
   { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pirate/submarine_pirate.png' },
   { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate/destroyer_pirate.png' },
 ];
+
+const SHIPS_PADRAO = [
+  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao/carrier.png' },
+  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/padrao/battleship.png' },
+  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/padrao/cruiser.png' },
+  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/padrao/submarine.png' },
+  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/padrao/destroyer.png' },
+];
+
+const SHIPS_PIRATE_OP = [
+  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/pirate_op/carrier_pirate_op.png' },
+  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/pirate_op/battleship_pirate_op.png' },
+  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/pirate_op/cruiser_pirate_op.png' },
+  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pirate_op/submarine_pirate_op.png' },
+  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate_op/destroyer_pirate_op.png' },
+];
+
+const SKINS_MAP = {
+  padrao_antigo: SHIPS_PADRAO_ANTIGO,
+  pirate: SHIPS_PIRATE,
+  padrao: SHIPS_PADRAO,
+  pirate_op: SHIPS_PIRATE_OP,
+};
 
 const CELL_SIZE_DESKTOP = 40;
 const CELL_SIZE_MOBILE = 32;
@@ -58,8 +82,8 @@ export default function PlaceShips() {
   const [sending, setSending] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
-  const mySkin = gameState?.mySkin || 'padrao';
-  const SHIPS = mySkin === 'pirate' ? SHIPS_PIRATE : SHIPS_PADRAO;
+  const mySkin = gameState?.mySkin || 'padrao_antigo';
+  const SHIPS = SKINS_MAP[mySkin] || SHIPS_PADRAO_ANTIGO;
   const allPlaced = placed.length === SHIPS.length;
 
   useEffect(() => {
@@ -301,9 +325,18 @@ export default function PlaceShips() {
             )}
 
             {sending && (
-              <div className="flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#c4983c] animate-pulse"></div>
-                <span className="text-[#c4b28a] text-sm">Aguardando oponente...</span>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
+                <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 flex flex-col items-center gap-6 max-w-sm mx-4 shadow-2xl">
+                  <WaitingScreen
+                    description="Seus navios estão posicionados"
+                  />
+                  <button
+                    onClick={() => setSending(false)}
+                    className="px-6 py-2.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-bold tracking-wider uppercase hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors font-[MedievalSharp]"
+                  >
+                    ← Reposicionar navios
+                  </button>
+                </div>
               </div>
             )}
           </div>

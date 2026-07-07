@@ -14,11 +14,13 @@ public class GameStateResponse {
     private String lastShotResult;
     private String sunkShipType;
     private String mySkin;
+    private String opponentSkin;
     private List<int[]> sunkShipCells;
+    private List<ShipInfo> myShips;
 
     public GameStateResponse() {}
 
-    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType, String mySkin, List<int[]> sunkShipCells) {
+    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType, String mySkin, String opponentSkin, List<int[]> sunkShipCells, List<ShipInfo> myShips) {
         this.gameId = gameId;
         this.phase = phase;
         this.currentTurn = currentTurn;
@@ -29,7 +31,9 @@ public class GameStateResponse {
         this.lastShotResult = lastShotResult;
         this.sunkShipType = sunkShipType;
         this.mySkin = mySkin;
+        this.opponentSkin = opponentSkin;
         this.sunkShipCells = sunkShipCells;
+        this.myShips = myShips;
     }
 
     public String getGameId() { return gameId; }
@@ -52,6 +56,43 @@ public class GameStateResponse {
     public void setSunkShipType(String sunkShipType) { this.sunkShipType = sunkShipType; }
     public String getMySkin() { return mySkin; }
     public void setMySkin(String mySkin) { this.mySkin = mySkin; }
+    public String getOpponentSkin() { return opponentSkin; }
+    public void setOpponentSkin(String opponentSkin) { this.opponentSkin = opponentSkin; }
     public List<int[]> getSunkShipCells() { return sunkShipCells; }
     public void setSunkShipCells(List<int[]> sunkShipCells) { this.sunkShipCells = sunkShipCells; }
+    public List<ShipInfo> getMyShips() { return myShips; }
+    public void setMyShips(List<ShipInfo> myShips) { this.myShips = myShips; }
+
+    public static class ShipInfo {
+        private String type;
+        private int row;
+        private int col;
+        private int size;
+        private String orientation;
+        private boolean sunk;
+
+        public ShipInfo() {}
+
+        public ShipInfo(String type, int row, int col, int size, String orientation, boolean sunk) {
+            this.type = type;
+            this.row = row;
+            this.col = col;
+            this.size = size;
+            this.orientation = orientation;
+            this.sunk = sunk;
+        }
+
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+        public int getRow() { return row; }
+        public void setRow(int row) { this.row = row; }
+        public int getCol() { return col; }
+        public void setCol(int col) { this.col = col; }
+        public int getSize() { return size; }
+        public void setSize(int size) { this.size = size; }
+        public String getOrientation() { return orientation; }
+        public void setOrientation(String orientation) { this.orientation = orientation; }
+        public boolean isSunk() { return sunk; }
+        public void setSunk(boolean sunk) { this.sunk = sunk; }
+    }
 }
