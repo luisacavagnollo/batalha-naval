@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, useRef, useEffect } from 'react';
+import { createContext, useContext, useReducer, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Client } from '@stomp/stompjs';
 
 const WS_URL = import.meta.env.VITE_WS_URL;
@@ -308,14 +308,18 @@ export function GameProvider({ children }) {
     };
   }, []);
 
-  const actions = {
+  const actions = useMemo(() => ({
     connect, disconnect, resetGame, subscribeToGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
     shoot, sendEmote, requestRematch, surrender,
-  };
+  }), [connect, disconnect, resetGame, subscribeToGame,
+    createRoom, startSinglePlayer, joinRoom, placeShip,
+    shoot, sendEmote, requestRematch, surrender]);
+
+  const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
 
   return (
-    <GameContext.Provider value={{ state, actions }}>
+    <GameContext.Provider value={contextValue}>
       {children}
     </GameContext.Provider>
   );

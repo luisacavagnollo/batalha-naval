@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
+import { useSound } from '../hooks/useSound';
 import ConnectionStatus from '../components/ConnectionStatus';
 import ShipSelector from '../components/ShipSelector';
 import BoardGrid, { GAP } from '../components/BoardGrid';
@@ -46,6 +47,7 @@ export default function PlaceShips() {
   const username = localStorage.getItem('username');
   const navigate = useNavigate();
   const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, connectionStatus, reconnectInfo } = useGame(token);
+  const { play, toggleMute, muted } = useSound();
   const cellSize = useResponsiveCellSize();
 
   const [orientation, setOrientation] = useState('HORIZONTAL');
@@ -54,6 +56,7 @@ export default function PlaceShips() {
   const [hoverCells, setHoverCells] = useState([]);
   const [hoverPos, setHoverPos] = useState(null);
   const [sending, setSending] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const mySkin = gameState?.mySkin || 'padrao';
   const SHIPS = mySkin === 'pirate' ? SHIPS_PIRATE : SHIPS_PADRAO;
@@ -64,10 +67,11 @@ export default function PlaceShips() {
   }, [connect, subscribeToGame, gameId]);
 
   useEffect(() => {
+    if (leaving) return;
     if (gameState?.phase === 'IN_PROGRESS') {
       navigate(`/game/${gameId}`);
     }
-  }, [gameState, gameId, navigate]);
+  }, [gameState, gameId, navigate, leaving]);
 
   // Selecionar primeiro navio automaticamente
   useEffect(() => {
@@ -121,6 +125,7 @@ export default function PlaceShips() {
     if (!shipData) return;
     const cells = getCells(row, col, shipData.size, orientation);
     if (!cells || isOccupied(cells, selectedShip)) return;
+    play('click');
 
     // Remove posição anterior se já estava colocado
     const newPlaced = placed.filter(p => p.type !== selectedShip);
@@ -149,6 +154,7 @@ export default function PlaceShips() {
   };
 
   const handleReady = async () => {
+    play('click');
     setSending(true);
     for (const ship of placed) {
       placeShip(gameId, ship.type, ship.row, ship.col, ship.orientation);
@@ -187,14 +193,23 @@ export default function PlaceShips() {
       <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => { surrender(gameId); resetGame(); navigate('/lobby'); }}
+            onClick={() => { setLeaving(true); resetGame(); navigate('/lobby'); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium tracking-wider hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors"
           >
             <span>←</span> Lobby
           </button>
           <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
         </div>
-        <span className="text-[#5a5048] text-sm">{username}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleMute}
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            title={muted ? 'Ativar som' : 'Silenciar'}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+          <span className="text-[#5a5048] text-sm">{username}</span>
+        </div>
       </header>
 
       {/* Conteúdo */}
@@ -252,23 +267,23 @@ export default function PlaceShips() {
                 getCellClass={(row, col) =>
                   hoverCells.some(c => c.row === row && c.col === col) ? 'bg-[#c4983c]/25' : ''
                 }
+                backgroundChildren={
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                    <img src="/fish/left/fish4.png" alt="" className="absolute top-[15%] h-9 opacity-[0.14] animate-[swim-left_16s_linear_infinite]" />
+                    <img src="/fish/right/fish2.png" alt="" className="absolute top-[38%] h-6 opacity-[0.17] animate-[swim-right_19s_linear_infinite] [animation-delay:4s]" />
+                    <img src="/fish/left/fish3.png" alt="" className="absolute top-[55%] h-7 opacity-[0.15] animate-[swim-left_14s_linear_infinite] [animation-delay:8s]" />
+                    <img src="/fish/right/fish1.png" alt="" className="absolute top-[72%] h-10 opacity-[0.12] animate-[swim-right_23s_linear_infinite] [animation-delay:12s]" />
+                    <img src="/fish/left/fish2.png" alt="" className="absolute top-[90%] h-5 opacity-[0.16] animate-[swim-left_26s_linear_infinite] [animation-delay:17s]" />
+                  </div>
+                }
               >
-                {/* Peixes animados no fundo */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                  <img src="/fish/left/fish4.png" alt="" className="absolute top-[15%] h-9 opacity-[0.14] animate-[swim-left_16s_linear_infinite]" />
-                  <img src="/fish/right/fish2.png" alt="" className="absolute top-[38%] h-6 opacity-[0.17] animate-[swim-right_19s_linear_infinite] [animation-delay:4s]" />
-                  <img src="/fish/left/fish3.png" alt="" className="absolute top-[55%] h-7 opacity-[0.15] animate-[swim-left_14s_linear_infinite] [animation-delay:8s]" />
-                  <img src="/fish/right/fish1.png" alt="" className="absolute top-[72%] h-10 opacity-[0.12] animate-[swim-right_23s_linear_infinite] [animation-delay:12s]" />
-                  <img src="/fish/left/fish2.png" alt="" className="absolute top-[90%] h-5 opacity-[0.16] animate-[swim-left_26s_linear_infinite] [animation-delay:17s]" />
-                </div>
-
                 {/* Imagens dos navios posicionados */}
                 {placed.map((ship) => (
                   <img
                     key={ship.type}
                     src={ship.img}
                     alt={ship.type}
-                    className={`absolute pointer-events-none object-fill transition-opacity ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
+                    className={`absolute pointer-events-none object-fill transition-opacity z-[2] ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
                     style={getShipStyle(ship)}
                   />
                 ))}

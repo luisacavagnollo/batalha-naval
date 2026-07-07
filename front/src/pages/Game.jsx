@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
+import { useSound } from '../hooks/useSound';
 import ConnectionStatus from '../components/ConnectionStatus';
 import TurnIndicator from '../components/TurnIndicator';
 import EmotePanel from '../components/EmotePanel';
@@ -410,15 +411,55 @@ export default function Game() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, connectionStatus, reconnectInfo } = useGame(token);
+  const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const [sunkOpponentShips, setSunkOpponentShips] = useState([]);
   const [sunkOpponentCells, setSunkOpponentCells] = useState(new Set());
   const [gameFinished, setGameFinished] = useState(false);
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
   const cellSize = useResponsiveCellSize();
+  const prevGameStateRef = useRef(null);
 
   useEffect(() => {
     connect().then(() => subscribeToGame(gameId));
-  }, [connect, subscribeToGame, gameId]);
+    startMusic();
+    return () => stopMusic();
+  }, [connect, subscribeToGame, gameId, startMusic, stopMusic]);
+
+  // Sons baseados no gameState
+  useEffect(() => {
+    if (!gameState || !prevGameStateRef.current) {
+      prevGameStateRef.current = gameState;
+      return;
+    }
+
+    const prev = prevGameStateRef.current;
+
+    // Detectar novo resultado de tiro (comparar com estado anterior)
+    if (gameState.lastShotResult && gameState.lastShotResult !== prev.lastShotResult ||
+        gameState.opponentBoard !== prev.opponentBoard ||
+        gameState.myBoard !== prev.myBoard) {
+      if (gameState.lastShotResult === 'MISS') {
+        play('splash');
+      } else if (gameState.lastShotResult === 'HIT') {
+        play('explosion');
+      } else if (gameState.lastShotResult === 'SUNK') {
+        play('sunk');
+      }
+    }
+
+    // Vitória/Derrota
+    if (gameState.phase === 'FINISHED' && prev.phase !== 'FINISHED') {
+      setTimeout(() => {
+        if (gameState.winnerId === username) {
+          play('victory');
+        } else {
+          play('defeat');
+        }
+      }, 500);
+    }
+
+    prevGameStateRef.current = gameState;
+  }, [gameState, play, username]);
 
   useEffect(() => {
     if (gameState?.phase === 'FINISHED' && !gameFinished) {
@@ -451,6 +492,7 @@ export default function Game() {
     if (!gameState?.myTurn) return;
     const cell = gameState.opponentBoard[row][col];
     if (cell === 'HIT' || cell === 'MISS') return;
+    play('click');
     shoot(gameId, row, col);
   };
 
@@ -506,7 +548,16 @@ export default function Game() {
           )}
           <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
         </div>
-        <span className="text-[#5a5048] text-sm">{username}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleMute}
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            title={muted ? 'Ativar som' : 'Silenciar'}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+          <span className="text-[#5a5048] text-sm">{username}</span>
+        </div>
       </header>
 
       <TurnIndicator gameFinished={gameFinished} gameState={gameState} username={username} />

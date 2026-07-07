@@ -26,7 +26,8 @@ const GAP = 2;
  * - onMouseLeave: () => void
  * - getCellClass: (row, col) => classe extra para a célula (hover, highlight, etc.)
  * - active: se true, mostra cursor-crosshair e hover nos EMPTYs
- * - children: conteúdo absoluto sobre o grid (navios, peixes, etc.)
+ * - backgroundChildren: conteúdo absoluto atrás do grid (peixes, etc.)
+ * - children: conteúdo absoluto sobre o grid (navios, etc.)
  */
 export default function BoardGrid({
   cellSize,
@@ -38,6 +39,7 @@ export default function BoardGrid({
   getCellClass,
   active = false,
   className = '',
+  backgroundChildren,
   children,
 }) {
   const gridWidth = cellSize * 10 + GAP * 9;
@@ -47,10 +49,10 @@ export default function BoardGrid({
       className={`relative overflow-hidden rounded-md ${className}`}
       onMouseLeave={onMouseLeave}
     >
-      {children}
+      {backgroundChildren}
 
       <div
-        className="grid grid-cols-10"
+        className="relative z-[1] grid grid-cols-10"
         style={{ rowGap: `${GAP}px`, columnGap: `${GAP}px`, width: `${gridWidth}px` }}
       >
         {Array.from({ length: 100 }, (_, i) => {
@@ -58,8 +60,9 @@ export default function BoardGrid({
           const col = i % 10;
           const cell = board ? board[row][col] : 'EMPTY';
           const isSunk = sunkCells ? sunkCells.has(`${row},${col}`) : false;
-          const oceanClass = getOceanClass(row, col, cell, isSunk);
           const extraClass = getCellClass ? getCellClass(row, col) : '';
+          // Se getCellClass retorna algo, usa ele como fundo ao invés do ocean
+          const oceanClass = extraClass ? '' : getOceanClass(row, col, cell, isSunk);
           const hoverClass = active && cell === 'EMPTY' ? 'hover:bg-[#8b1a1a]/40' : '';
           const cursor = active ? 'cursor-crosshair' : onCellClick ? 'cursor-pointer' : 'cursor-default';
 
@@ -74,6 +77,8 @@ export default function BoardGrid({
           );
         })}
       </div>
+
+      {children}
     </div>
   );
 }

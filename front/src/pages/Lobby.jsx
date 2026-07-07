@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
+import { useSound } from '../hooks/useSound';
 import ConnectionStatus from '../components/ConnectionStatus';
 import { fetchStats } from '../services/api';
 
@@ -10,6 +11,7 @@ export default function Lobby() {
   const [code, setCode] = useState('');
   const [stats, setStats] = useState(null);
   const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame, connectionStatus, reconnectInfo } = useGame(token);
+  const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,17 +30,20 @@ export default function Lobby() {
   }, [roomCode, subscribeToGame]);
 
   const handleCreate = async () => {
+    play('click');
     await connect();
     createRoom();
   };
 
   const handleSinglePlayer = async () => {
+    play('click');
     await connect();
     startSinglePlayer();
   };
 
   const handleJoin = async () => {
     if (!code.trim()) return;
+    play('click');
     await connect();
     joinRoom(code.trim());
   };
@@ -48,7 +53,16 @@ export default function Lobby() {
       <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
       <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
-        <span className="text-[#5a5048] text-sm">{username}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleMute}
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            title={muted ? 'Ativar som' : 'Silenciar'}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+          <span className="text-[#5a5048] text-sm">{username}</span>
+        </div>
       </header>
 
       <div className="flex-1 flex items-center justify-center px-4 py-8">
