@@ -1,5 +1,5 @@
 # Build stage
-FROM maven:3.8-openjdk-11-slim AS build
+FROM maven:3.8-eclipse-temurin-11 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY .mvn .mvn
@@ -10,7 +10,7 @@ COPY src ./src
 RUN ./mvnw clean package -DskipTests -B
 
 # Run stage
-FROM openjdk:11-jre-slim
+FROM eclipse-temurin:11-jre
 WORKDIR /app
 COPY --from=build /app/target/batalha-naval-0.0.1-SNAPSHOT.jar app.jar
 
