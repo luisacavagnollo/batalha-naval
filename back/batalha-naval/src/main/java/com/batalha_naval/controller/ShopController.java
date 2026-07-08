@@ -25,6 +25,8 @@ public class ShopController {
         SKIN_CATALOG.add(createSkin("pirate", "Frota Pirata", 0, true));
         SKIN_CATALOG.add(createSkin("padrao", "Frota Imperial", 30, false));
         SKIN_CATALOG.add(createSkin("pirate_op", "Frota Pirata Lendária", 50, false));
+        SKIN_CATALOG.add(createSkin("pesca", "Frota Pesqueira", 40, false));
+        SKIN_CATALOG.add(createSkin("kitty", "Frota Hello Kitty", 60, false));
     }
 
     private static Map<String, Object> createSkin(String id, String name, int price, boolean isDefault) {

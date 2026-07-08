@@ -6,6 +6,8 @@ const SKIN_IMAGES = {
   pirate: '/ships/pirate/carrier_pirate.png',
   padrao: '/ships/padrao/carrier.png',
   pirate_op: '/ships/pirate_op/carrier_pirate_op.png',
+  pesca: '/ships/pesca/carrier_f.png',
+  kitty: '/ships/kitty/carrier_hk.png',
 };
 
 export default function ShopModal({ onClose, onBalanceChange }) {

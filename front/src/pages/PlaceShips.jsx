@@ -39,11 +39,29 @@ const SHIPS_PIRATE_OP = [
   { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate_op/destroyer_pirate_op.png' },
 ];
 
+const SHIPS_PESCA = [
+  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/pesca/carrier_f.png' },
+  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/pesca/battleship_f.png' },
+  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/pesca/cruiser_f.png' },
+  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pesca/submarine_f.png' },
+  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pesca/destroyer_f.png' },
+];
+
+const SHIPS_KITTY = [
+  { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/kitty/carrier_hk.png' },
+  { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/kitty/battleship_hk.png' },
+  { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/kitty/cruiser_hk.png' },
+  { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/kitty/submarine_hk.png' },
+  { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/kitty/destroyer_hk.png' },
+];
+
 const SKINS_MAP = {
   padrao_antigo: SHIPS_PADRAO_ANTIGO,
   pirate: SHIPS_PIRATE,
   padrao: SHIPS_PADRAO,
   pirate_op: SHIPS_PIRATE_OP,
+  pesca: SHIPS_PESCA,
+  kitty: SHIPS_KITTY,
 };
 
 const CELL_SIZE_DESKTOP = 40;
@@ -307,7 +325,7 @@ export default function PlaceShips() {
                     key={ship.type}
                     src={ship.img}
                     alt={ship.type}
-                    className={`absolute pointer-events-none object-fill transition-opacity z-[2] ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
+                    className={`absolute pointer-events-none object-contain transition-opacity z-[2] ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
                     style={getShipStyle(ship)}
                   />
                 ))}

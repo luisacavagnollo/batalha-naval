@@ -69,6 +69,20 @@ const SKINS = {
     { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pirate_op/submarine_pirate_op.png' },
     { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pirate_op/destroyer_pirate_op.png' },
   ],
+  pesca: [
+    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/pesca/carrier_f.png' },
+    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/pesca/battleship_f.png' },
+    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/pesca/cruiser_f.png' },
+    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/pesca/submarine_f.png' },
+    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/pesca/destroyer_f.png' },
+  ],
+  kitty: [
+    { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/kitty/carrier_hk.png' },
+    { type: 'BATTLESHIP', name: 'Navio-tanque', size: 4, img: '/ships/kitty/battleship_hk.png' },
+    { type: 'CRUISER', name: 'Contratorpedeiro', size: 3, img: '/ships/kitty/cruiser_hk.png' },
+    { type: 'SUBMARINE', name: 'Submarino', size: 3, img: '/ships/kitty/submarine_hk.png' },
+    { type: 'DESTROYER', name: 'Destroyer', size: 2, img: '/ships/kitty/destroyer_hk.png' },
+  ],
 };
 
 function detectShips(board) {
@@ -248,7 +262,7 @@ function ShipList({ ships, title, align, mobile }) {
                 <img
                   src={ship.img}
                   alt={ship.name}
-                  className={`object-fill ${ship.sunk ? 'grayscale' : ''}`}
+                  className={`object-contain ${ship.sunk ? 'grayscale' : ''}`}
                   style={{ width: `${ship.size * fleetCell}px`, height: `${fleetHeight}px` }}
                 />
                 {ship.sunk && <span className="text-[#8b1a1a] text-sm font-bold ml-1">✕</span>}
@@ -274,7 +288,7 @@ function ShipList({ ships, title, align, mobile }) {
             <img
               src={ship.img}
               alt={ship.name}
-              className={`object-fill ${ship.sunk ? 'grayscale' : ''}`}
+              className={`object-contain ${ship.sunk ? 'grayscale' : ''}`}
               style={{ width: `${ship.size * fleetCell}px`, height: `${fleetHeight}px` }}
             />
             {ship.sunk && <span className="text-[#8b1a1a] text-sm font-bold ml-2">✕</span>}
@@ -379,7 +393,7 @@ function MyBoard({ board, skinShips, cellSize, serverShips }) {
             key={idx}
             src={ship.img}
             alt={`ship-${ship.size}`}
-            className={`absolute pointer-events-none object-fill transition-opacity duration-500 ${ship.sunk ? 'opacity-25 grayscale' : 'opacity-90'}`}
+            className={`absolute pointer-events-none object-contain transition-opacity duration-500 ${ship.sunk ? 'opacity-25 grayscale' : 'opacity-90'}`}
             style={style}
           />
         );
@@ -480,7 +494,7 @@ function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips, 
             key={idx}
             src={ship.img}
             alt={`ship-${ship.size}`}
-            className={`absolute pointer-events-none object-fill transition-opacity duration-500 ${ship.sunk ? 'opacity-25 grayscale' : 'opacity-90'}`}
+            className={`absolute pointer-events-none object-contain transition-opacity duration-500 ${ship.sunk ? 'opacity-25 grayscale' : 'opacity-90'}`}
             style={style}
           />
         );
