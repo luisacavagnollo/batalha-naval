@@ -3,29 +3,29 @@ package com.batalha_naval.model;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "users")
+@Table(name = "app_users")
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 50)
     private String username;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 100)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String password;
 
     @Column(nullable = false)
     private int moedas = 0;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String skinEquipada = "padrao_antigo";
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String skinsAdquiridas = "padrao_antigo,pirate";
 
     public User() {

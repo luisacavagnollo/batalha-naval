@@ -10,13 +10,13 @@ public class GameRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String player1;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String player2;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String winner;
 
     @Column(nullable = false)
