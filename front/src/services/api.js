@@ -68,3 +68,9 @@ export async function equipSkin(token, skinId) {
   });
   return res.json();
 }
+
+export async function fetchRanking() {
+  const res = await fetch(`${API_URL}/api/stats/ranking`);
+  if (!res.ok) return [];
+  return res.json();
+}

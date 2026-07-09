@@ -8,13 +8,13 @@ import ConnectionStatus from '../components/ConnectionStatus';
 import WaitingScreen from '../components/WaitingScreen';
 import ProfileModal from '../components/ProfileModal';
 import ShopModal from '../components/ShopModal';
-import { fetchStats, fetchProfile } from '../services/api';
+import { fetchProfile, fetchRanking } from '../services/api';
 
 export default function Lobby() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const [code, setCode] = useState('');
-  const [stats, setStats] = useState(null);
+  const [ranking, setRanking] = useState([]);
   const [moedas, setMoedas] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -27,7 +27,7 @@ export default function Lobby() {
 
   useEffect(() => {
     resetGame();
-    fetchStats(token).then(data => { if (data) setStats(data); });
+    fetchRanking().then(data => { if (data) setRanking(data); });
     fetchProfile(token).then(data => { if (data) setMoedas(data.moedas); });
   }, [resetGame, token]);
 
@@ -47,11 +47,6 @@ export default function Lobby() {
     localStorage.removeItem('username');
     navigate('/');
   };
-
-  useEffect(() => {
-    resetGame();
-    fetchStats(token).then(data => { if (data) setStats(data); });
-  }, [resetGame, token]);
 
   useEffect(() => {
     if (gameState?.gameId && gameState.phase !== 'FINISHED') {
@@ -175,49 +170,28 @@ export default function Lobby() {
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl flex flex-col lg:flex-row gap-6">
 
-          {/* Perfil do jogador */}
+          {/* Ranking */}
           <div className="w-full lg:w-72 flex flex-col gap-4">
-            {/* Stats */}
             <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-5">
-              <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-4 font-[MedievalSharp]">Perfil</h3>
-              <p className="text-[#c4983c] text-lg font-bold mb-4">{username}</p>
-
-              {stats ? (
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p className="text-[#e8d5b0] text-xl font-bold">{stats.wins}</p>
-                    <p className="text-[#5a5048] text-xs">Vitórias</p>
-                  </div>
-                  <div>
-                    <p className="text-[#e8d5b0] text-xl font-bold">{stats.losses}</p>
-                    <p className="text-[#5a5048] text-xs">Derrotas</p>
-                  </div>
-                  <div>
-                    <p className="text-[#c4983c] text-xl font-bold">{stats.winRate}%</p>
-                    <p className="text-[#5a5048] text-xs">Win Rate</p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[#5a5048] text-sm">Nenhuma partida ainda</p>
-              )}
-            </div>
-
-            {/* Histórico */}
-            <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-5">
-              <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-3 font-[MedievalSharp]">Últimas partidas</h3>
-              {stats && stats.history && stats.history.length > 0 ? (
+              <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-4 font-[MedievalSharp]">Ranking</h3>
+              {ranking.length > 0 ? (
                 <div className="flex flex-col gap-2">
-                  {stats.history.map((match, i) => (
-                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-[#3d2a1a]/20 last:border-0">
-                      <span className="text-[#e8d5b0] text-sm">{match.opponent === 'BOT' ? 'Bot' : match.opponent}</span>
-                      <span className={`text-xs font-bold tracking-wider ${match.won ? 'text-[#c4983c]' : 'text-[#8b1a1a]'}`}>
-                        {match.won ? 'Vitória' : 'Derrota'}
-                      </span>
+                  {ranking.map((player, i) => (
+                    <div key={i} className={`flex items-center justify-between py-2 px-3 rounded-md ${player.username === username ? 'bg-[#c4983c]/10 border border-[#c4983c]/30' : 'border-b border-[#3d2a1a]/20 last:border-0'}`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold w-5 ${i < 3 ? 'text-[#c4983c]' : 'text-[#5a5048]'}`}>
+                          {i + 1}º
+                        </span>
+                        <span className={`text-sm ${player.username === username ? 'text-[#c4983c] font-bold' : 'text-[#e8d5b0]'}`}>
+                          {player.username}
+                        </span>
+                      </div>
+                      <span className="text-[#c4983c] text-sm font-bold">{player.wins}W</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-[#5a5048] text-sm">Sem histórico</p>
+                <p className="text-[#5a5048] text-sm">Nenhuma partida multiplayer ainda</p>
               )}
             </div>
           </div>
