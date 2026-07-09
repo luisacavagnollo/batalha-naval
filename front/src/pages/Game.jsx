@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { useSound } from '../hooks/useSound';
+import { HiVolumeUp, HiVolumeOff } from 'react-icons/hi';
 import ConnectionStatus from '../components/ConnectionStatus';
 import TurnIndicator from '../components/TurnIndicator';
 import EmotePanel from '../components/EmotePanel';
@@ -605,7 +606,12 @@ export default function Game() {
   const mySkinShips = SKINS[mySkin] || SKINS['padrao_antigo'];
   const opponentSkinShips = SKINS[opponentSkin] || SKINS['padrao_antigo'];
 
-  const myShipsStatus = getSunkStatus(gameState?.myBoard, mySkinShips);
+  const myShipsStatus = gameState?.myShips
+    ? mySkinShips.map(s => {
+        const serverShip = gameState.myShips.find(ss => ss.type === s.type);
+        return { ...s, sunk: serverShip ? serverShip.sunk : false };
+      })
+    : getSunkStatus(gameState?.myBoard, mySkinShips);
   const opponentShipsStatus = opponentSkinShips.map(s => ({
     ...s,
     sunk: sunkOpponentShips.includes(s.type),
@@ -644,15 +650,15 @@ export default function Game() {
               )}
             </div>
           )}
-          <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
+          
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={toggleMute}
-            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-xl"
             title={muted ? 'Ativar som' : 'Silenciar'}
           >
-            {muted ? '🔇' : '🔊'}
+            {muted ? <HiVolumeOff /> : <HiVolumeUp />}
           </button>
           <span className="text-[#5a5048] text-sm">{username}</span>
         </div>

@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { useSound } from '../hooks/useSound';
+import { HiVolumeUp, HiVolumeOff } from 'react-icons/hi';
+import { FiShoppingCart } from 'react-icons/fi';
 import ConnectionStatus from '../components/ConnectionStatus';
 import WaitingScreen from '../components/WaitingScreen';
 import ProfileModal from '../components/ProfileModal';
@@ -117,7 +119,7 @@ export default function Lobby() {
     <div className="min-h-screen bg-[#211a14] flex flex-col">
       <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
       <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
+        <h1 className="text-2xl font-bold text-[#c4983c] tracking-tight uppercase font-['Eagle_Lake']">Batalha Naval</h1>
         <div className="flex items-center gap-4">
           {/* Moedas */}
           <span className="text-[#c4983c] text-sm font-bold">🪙 {moedas}</span>
@@ -125,19 +127,19 @@ export default function Lobby() {
           {/* Loja */}
           <button
             onClick={() => { play('click'); setShowShop(true); }}
-            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-xl"
             title="Loja"
           >
-            🛒
+            <FiShoppingCart />
           </button>
 
           {/* Mute */}
           <button
             onClick={toggleMute}
-            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-xl"
             title={muted ? 'Ativar som' : 'Silenciar'}
           >
-            {muted ? '🔇' : '🔊'}
+            {muted ? <HiVolumeOff /> : <HiVolumeUp />}
           </button>
 
           {/* Username dropdown */}
@@ -266,7 +268,7 @@ export default function Lobby() {
                     onClick={handleMatchmaking}
                     className="w-full py-3.5 rounded-md bg-[#0f2640] border border-[#1a3a5c]/60 text-[#e8d5b0] text-sm font-bold tracking-wider uppercase hover:bg-[#1a3a5c] hover:border-[#c4983c]/40 transition-colors font-[MedievalSharp]"
                   >
-                    ⚔️ Partida Aleatória
+                    Partida Aleatória
                   </button>
 
                   <div className="flex items-center gap-4 my-2">

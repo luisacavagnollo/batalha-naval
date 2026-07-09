@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { useSound } from '../hooks/useSound';
+import { HiVolumeUp, HiVolumeOff } from 'react-icons/hi';
 import ConnectionStatus from '../components/ConnectionStatus';
 import ShipSelector from '../components/ShipSelector';
 import BoardGrid, { GAP } from '../components/BoardGrid';
@@ -240,15 +241,15 @@ export default function PlaceShips() {
           >
             <span>←</span> Lobby
           </button>
-          <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
+          
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={toggleMute}
-            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-lg"
+            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-xl"
             title={muted ? 'Ativar som' : 'Silenciar'}
           >
-            {muted ? '🔇' : '🔊'}
+            {muted ? <HiVolumeOff /> : <HiVolumeUp />}
           </button>
           <span className="text-[#5a5048] text-sm">{username}</span>
         </div>
@@ -286,7 +287,7 @@ export default function PlaceShips() {
                 onClick={() => setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL')}
                 className="px-4 py-2 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium tracking-wider hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors"
               >
-                Rotacionar ({orientation === 'HORIZONTAL' ? 'H' : 'V'})
+                Rotacionar
               </button>
               <span className="text-[#5a5048] text-xs self-center hidden sm:inline">ou botão direito</span>
             </div>

@@ -222,7 +222,9 @@ async function playSound(soundName) {
   const source = ctx.createBufferSource();
   const gainNode = ctx.createGain();
   source.buffer = buffer;
-  gainNode.gain.value = currentVolume;
+  // Reduzir volume de sons muito altos
+  const volumeMultiplier = soundName === 'explosion' ? 0.4 : 1.0;
+  gainNode.gain.value = currentVolume * volumeMultiplier;
   source.connect(gainNode);
   gainNode.connect(ctx.destination);
   source.start(0);

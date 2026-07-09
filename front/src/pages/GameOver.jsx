@@ -43,7 +43,7 @@ export default function GameOver() {
     <div className="min-h-screen bg-[#211a14] flex flex-col">
       <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
       <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30">
-        <h1 className="text-2xl font-bold text-[#c4983c] tracking-[0.15em] uppercase font-[MedievalSharp]">Batalha Naval</h1>
+        <h1 className="text-2xl font-bold text-[#c4983c] tracking-tight uppercase font-['Eagle_Lake']">Batalha Naval</h1>
       </header>
 
       <div className="flex-1 flex items-center justify-center px-4">
