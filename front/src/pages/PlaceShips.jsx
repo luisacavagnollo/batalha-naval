@@ -209,20 +209,23 @@ export default function PlaceShips() {
     const cellTotal = cellSize + GAP;
     const top = ship.row * cellTotal;
     const left = ship.col * cellTotal;
+    const heightScale = ship.size <= 2 ? 1.8 : ship.size <= 3 ? 1.3 : 1;
+    const shipHeight = cellSize * heightScale;
+    const topOffset = top - (shipHeight - cellSize) / 2;
 
     if (ship.orientation === 'HORIZONTAL') {
       return {
-        top: `${top}px`,
+        top: `${topOffset}px`,
         left: `${left}px`,
         width: `${ship.size * cellTotal - GAP}px`,
-        height: `${cellSize}px`,
+        height: `${shipHeight}px`,
       };
     } else {
       return {
-        top: `${top}px`,
+        top: `${topOffset}px`,
         left: `${left}px`,
         width: `${ship.size * cellTotal - GAP}px`,
-        height: `${cellSize}px`,
+        height: `${shipHeight}px`,
         transform: 'rotate(90deg) translateY(-100%)',
         transformOrigin: 'top left',
       };

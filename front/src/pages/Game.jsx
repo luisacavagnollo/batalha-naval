@@ -379,12 +379,16 @@ function MyBoard({ board, skinShips, cellSize, serverShips }) {
         const top = ship.row * cellTotal;
         const left = ship.col * cellTotal;
         const length = ship.size * cellTotal - GAP;
+        // Navios menores podem usar mais altura para não ficar tiny
+        const heightScale = ship.size <= 2 ? 1.8 : ship.size <= 3 ? 1.3 : 1;
+        const shipHeight = cellSize * heightScale;
+        const topOffset = top - (shipHeight - cellSize) / 2;
 
         const style = ship.orientation === 'HORIZONTAL'
-          ? { top: `${top}px`, left: `${left}px`, width: `${length}px`, height: `${cellSize}px` }
+          ? { top: `${topOffset}px`, left: `${left}px`, width: `${length}px`, height: `${shipHeight}px` }
           : {
-              top: `${top}px`, left: `${left + cellSize}px`,
-              width: `${length}px`, height: `${cellSize}px`,
+              top: `${topOffset}px`, left: `${left + cellSize}px`,
+              width: `${length}px`, height: `${shipHeight}px`,
               transform: 'rotate(90deg)',
               transformOrigin: 'top left',
             };
@@ -480,12 +484,15 @@ function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips, 
         const top = ship.row * cellTotal;
         const left = ship.col * cellTotal;
         const length = ship.size * cellTotal - GAP;
+        const heightScale = ship.size <= 2 ? 1.8 : ship.size <= 3 ? 1.3 : 1;
+        const shipHeight = cellSize * heightScale;
+        const topOffset = top - (shipHeight - cellSize) / 2;
 
         const style = ship.orientation === 'HORIZONTAL'
-          ? { top: `${top}px`, left: `${left}px`, width: `${length}px`, height: `${cellSize}px` }
+          ? { top: `${topOffset}px`, left: `${left}px`, width: `${length}px`, height: `${shipHeight}px` }
           : {
-              top: `${top}px`, left: `${left + cellSize}px`,
-              width: `${length}px`, height: `${cellSize}px`,
+              top: `${topOffset}px`, left: `${left + cellSize}px`,
+              width: `${length}px`, height: `${shipHeight}px`,
               transform: 'rotate(90deg)',
               transformOrigin: 'top left',
             };

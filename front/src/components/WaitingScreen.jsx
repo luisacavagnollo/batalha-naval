@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Compass from './Compass';
 
 const PIRATE_PHRASES = [
   'Alistando tripulação...',
@@ -54,29 +55,7 @@ export default function WaitingScreen({ title, subtitle, description, onCancel, 
   return (
     <div className="flex flex-col items-center gap-6 py-8">
       {/* Bússola girando */}
-      <div className="relative w-24 h-24 flex items-center justify-center">
-        {/* Anel externo */}
-        <div className="absolute inset-0 rounded-full border-2 border-[#c4983c]/40" />
-        <div className="absolute inset-1 rounded-full border border-[#3d2a1a]/60" />
-        
-        {/* Marcações cardinais */}
-        <span className="absolute top-1 left-1/2 -translate-x-1/2 text-[#c4983c] text-[10px] font-bold font-[MedievalSharp]">N</span>
-        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[#5a5048] text-[10px] font-bold font-[MedievalSharp]">S</span>
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[#5a5048] text-[10px] font-bold font-[MedievalSharp]">W</span>
-        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#5a5048] text-[10px] font-bold font-[MedievalSharp]">E</span>
-
-        {/* Agulha girando */}
-        <div className="w-12 h-12 animate-[compass-spin_4s_ease-in-out_infinite] flex items-center justify-center">
-          <div className="relative w-full h-full">
-            {/* Ponta norte (ouro) */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-b-[20px] border-l-transparent border-r-transparent border-b-[#c4983c]" />
-            {/* Ponta sul (escura) */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-t-[20px] border-l-transparent border-r-transparent border-t-[#3d2a1a]" />
-            {/* Centro */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#c4983c] border border-[#8b6914]" />
-          </div>
-        </div>
-      </div>
+      <Compass size="lg" />
 
       {/* Título e subtítulo */}
       {title && (

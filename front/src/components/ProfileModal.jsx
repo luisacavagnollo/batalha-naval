@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { fetchProfile, equipSkin } from '../services/api';
+import { fetchProfile, fetchStats, equipSkin } from '../services/api';
+import Compass from './Compass';
 
 const SKIN_IMAGES = {
   padrao_antigo: '/ships/padrao_antigo/carrier_antigo.png',
@@ -22,12 +23,15 @@ const SKIN_NAMES = {
 export default function ProfileModal({ onClose }) {
   const token = localStorage.getItem('token');
   const [profile, setProfile] = useState(null);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [equipping, setEquipping] = useState(null);
+  const [tab, setTab] = useState('stats');
 
   useEffect(() => {
-    fetchProfile(token).then(data => {
-      setProfile(data);
+    Promise.all([fetchProfile(token), fetchStats(token)]).then(([profileData, statsData]) => {
+      setProfile(profileData);
+      if (statsData && statsData.history) setHistory(statsData.history);
       setLoading(false);
     });
   }, [token]);
@@ -44,7 +48,8 @@ export default function ProfileModal({ onClose }) {
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
-        <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 shadow-2xl">
+        <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 shadow-2xl flex flex-col items-center gap-4">
+          <Compass size="md" />
           <p className="text-[#c4b28a] text-sm">Carregando...</p>
         </div>
       </div>
@@ -57,39 +62,75 @@ export default function ProfileModal({ onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
       <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-6 sm:p-8 max-w-md w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-[#c4983c] tracking-wider uppercase font-[MedievalSharp]">Meu Perfil</h2>
           <button onClick={onClose} className="text-[#5a5048] hover:text-[#c4983c] text-2xl transition-colors">✕</button>
         </div>
 
         {/* Username + Moedas */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#3d2a1a]/40">
+        <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#3d2a1a]/40">
           <span className="text-[#e8d5b0] text-lg font-bold">{profile.username}</span>
           <span className="text-[#c4983c] font-bold">🪙 {profile.moedas}</span>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 text-center mb-6">
-          <div className="bg-[#211a14] rounded-md p-3">
-            <p className="text-[#e8d5b0] text-xl font-bold">{profile.wins || 0}</p>
-            <p className="text-[#5a5048] text-xs">Vitórias</p>
-          </div>
-          <div className="bg-[#211a14] rounded-md p-3">
-            <p className="text-[#e8d5b0] text-xl font-bold">{profile.losses || 0}</p>
-            <p className="text-[#5a5048] text-xs">Derrotas</p>
-          </div>
-          <div className="bg-[#211a14] rounded-md p-3">
-            <p className="text-[#c4983c] text-xl font-bold">{profile.winRate || 0}%</p>
-            <p className="text-[#5a5048] text-xs">Win Rate</p>
-          </div>
+        {/* Tabs */}
+        <div className="flex mb-6 border-b border-[#3d2a1a]/40">
+          <button
+            onClick={() => setTab('stats')}
+            className={`flex-1 pb-3 text-sm font-bold tracking-wider uppercase transition-colors ${tab === 'stats' ? 'text-[#c4983c] border-b-2 border-[#c4983c]' : 'text-[#5a5048] hover:text-[#c4b28a]'}`}
+          >
+            Estatísticas
+          </button>
+          <button
+            onClick={() => setTab('skins')}
+            className={`flex-1 pb-3 text-sm font-bold tracking-wider uppercase transition-colors ${tab === 'skins' ? 'text-[#c4983c] border-b-2 border-[#c4983c]' : 'text-[#5a5048] hover:text-[#c4b28a]'}`}
+          >
+            Skins
+          </button>
         </div>
 
-        {/* Partidas jogadas */}
-        <p className="text-[#5a5048] text-xs text-center mb-6">{total} partidas jogadas</p>
+        {/* Tab: Estatísticas */}
+        {tab === 'stats' && (
+          <>
+            <div className="grid grid-cols-3 gap-3 text-center mb-6">
+              <div className="bg-[#211a14] rounded-md p-3">
+                <p className="text-[#e8d5b0] text-xl font-bold">{profile.wins || 0}</p>
+                <p className="text-[#5a5048] text-xs">Vitórias</p>
+              </div>
+              <div className="bg-[#211a14] rounded-md p-3">
+                <p className="text-[#e8d5b0] text-xl font-bold">{profile.losses || 0}</p>
+                <p className="text-[#5a5048] text-xs">Derrotas</p>
+              </div>
+              <div className="bg-[#211a14] rounded-md p-3">
+                <p className="text-[#c4983c] text-xl font-bold">{profile.winRate || 0}%</p>
+                <p className="text-[#5a5048] text-xs">Win Rate</p>
+              </div>
+            </div>
 
-        {/* Skins */}
-        <div className="mb-4">
-          <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-3 font-[MedievalSharp]">Minhas Skins</h3>
+            <p className="text-[#5a5048] text-xs text-center mb-6">{total} partidas jogadas</p>
+
+            <div>
+              <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-3 font-[MedievalSharp]">Últimas partidas</h3>
+              {history.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {history.map((match, i) => (
+                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-md bg-[#211a14]/50 border border-[#3d2a1a]/20">
+                      <span className="text-[#e8d5b0] text-sm">{match.opponent === 'BOT' ? 'Bot' : match.opponent}</span>
+                      <span className={`text-xs font-bold tracking-wider ${match.won ? 'text-[#c4983c]' : 'text-[#8b1a1a]'}`}>
+                        {match.won ? 'Vitória' : 'Derrota'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[#5a5048] text-sm">Sem histórico</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Tab: Skins */}
+        {tab === 'skins' && (
           <div className="flex flex-col gap-3">
             {(profile.skinsAdquiridas || []).map(skinId => {
               const isEquipped = profile.skinEquipada === skinId;
@@ -113,7 +154,7 @@ export default function ProfileModal({ onClose }) {
               );
             })}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

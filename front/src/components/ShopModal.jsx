@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchShopSkins, buySkin, fetchProfile } from '../services/api';
+import Compass from './Compass';
 
 const SKIN_IMAGES = {
   padrao_antigo: '/ships/padrao_antigo/carrier_antigo.png',
@@ -44,7 +45,8 @@ export default function ShopModal({ onClose, onBalanceChange }) {
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
-        <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 shadow-2xl">
+        <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 shadow-2xl flex flex-col items-center gap-4">
+          <Compass size="md" />
           <p className="text-[#c4b28a] text-sm">Carregando...</p>
         </div>
       </div>
