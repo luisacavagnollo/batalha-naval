@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchShopSkins, buySkin, fetchProfile } from '../services/api';
 import Compass from './Compass';
 
@@ -18,9 +18,37 @@ export default function ShopModal({ onClose, onBalanceChange }) {
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(null);
   const [message, setMessage] = useState(null);
+  const modalRef = useRef(null);
+
+  // Focus trap e Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    modalRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     Promise.all([fetchShopSkins(token), fetchProfile(token)]).then(([skinsData, profile]) => {
+      if (profile?._unauthorized) {
+        onClose();
+        return;
+      }
       if (skinsData) setSkins(skinsData);
       if (profile) setMoedas(profile.moedas);
       setLoading(false);
@@ -54,12 +82,12 @@ export default function ShopModal({ onClose, onBalanceChange }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
-      <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-6 sm:p-8 max-w-md w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="shop-modal-title">
+      <div ref={modalRef} tabIndex={-1} className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-6 sm:p-8 max-w-md w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto outline-none">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-[#c4983c] tracking-wider uppercase font-[MedievalSharp]">Loja</h2>
-          <button onClick={onClose} className="text-[#5a5048] hover:text-[#c4983c] text-2xl transition-colors">✕</button>
+          <h2 id="shop-modal-title" className="text-xl font-bold text-[#c4983c] tracking-wider uppercase font-[MedievalSharp]">Loja</h2>
+          <button onClick={onClose} className="text-[#5a5048] hover:text-[#c4983c] text-2xl transition-colors" aria-label="Fechar">✕</button>
         </div>
 
         {/* Saldo */}

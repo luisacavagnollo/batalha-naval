@@ -49,7 +49,7 @@ public class ShopController {
         User user = userRepository.findByUsername(username).orElse(null);
         if (user == null) return ResponseEntity.status(401).build();
 
-        Set<String> ownedSkins = new HashSet<>(Arrays.asList(user.getSkinsAdquiridas().split(",")));
+        Set<String> ownedSkins = parseOwnedSkins(user.getSkinsAdquiridas());
 
         List<Map<String, Object>> result = SKIN_CATALOG.stream().map(skin -> {
             Map<String, Object> skinResponse = new LinkedHashMap<>(skin);
@@ -82,7 +82,7 @@ public class ShopController {
         User user = userRepository.findByUsername(username).orElse(null);
         if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Sessão expirada"));
 
-        Set<String> ownedSkins = new HashSet<>(Arrays.asList(user.getSkinsAdquiridas().split(",")));
+        Set<String> ownedSkins = parseOwnedSkins(user.getSkinsAdquiridas());
 
         if (ownedSkins.contains(skinId)) {
             return ResponseEntity.badRequest().body(Map.of("error", "Você já possui esta skin"));
@@ -120,7 +120,7 @@ public class ShopController {
         profile.put("username", user.getUsername());
         profile.put("moedas", user.getMoedas());
         profile.put("skinEquipada", user.getSkinEquipada());
-        profile.put("skinsAdquiridas", Arrays.asList(user.getSkinsAdquiridas().split(",")));
+        profile.put("skinsAdquiridas", new ArrayList<>(parseOwnedSkins(user.getSkinsAdquiridas())));
         profile.put("wins", wins);
         profile.put("losses", losses);
         profile.put("winRate", winRate);
@@ -140,7 +140,7 @@ public class ShopController {
         User user = userRepository.findByUsername(username).orElse(null);
         if (user == null) return ResponseEntity.status(401).body(Map.of("error", "Sessão expirada"));
 
-        Set<String> ownedSkins = new HashSet<>(Arrays.asList(user.getSkinsAdquiridas().split(",")));
+        Set<String> ownedSkins = parseOwnedSkins(user.getSkinsAdquiridas());
 
         if (!ownedSkins.contains(skinId)) {
             return ResponseEntity.badRequest().body(Map.of("error", "Você não possui esta skin"));
@@ -157,7 +157,28 @@ public class ShopController {
         response.put("username", user.getUsername());
         response.put("moedas", user.getMoedas());
         response.put("skinEquipada", user.getSkinEquipada());
-        response.put("skinsAdquiridas", Arrays.asList(user.getSkinsAdquiridas().split(",")));
+        response.put("skinsAdquiridas", new ArrayList<>(parseOwnedSkins(user.getSkinsAdquiridas())));
         return response;
+    }
+
+    /**
+     * Parse seguro de skinsAdquiridas — trata null, vazio e strings legacy.
+     */
+    private static Set<String> parseOwnedSkins(String skinsAdquiridas) {
+        if (skinsAdquiridas == null || skinsAdquiridas.isBlank()) {
+            // Usuários legacy sem dados — garantir skins default
+            return new HashSet<>(Arrays.asList("padrao_antigo", "pirate"));
+        }
+        Set<String> skins = new HashSet<>();
+        for (String s : skinsAdquiridas.split(",")) {
+            String trimmed = s.trim();
+            if (!trimmed.isEmpty()) {
+                skins.add(trimmed);
+            }
+        }
+        // Garantir que skins default sempre existem
+        skins.add("padrao_antigo");
+        skins.add("pirate");
+        return skins;
     }
 }

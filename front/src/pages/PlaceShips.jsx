@@ -89,7 +89,7 @@ export default function PlaceShips() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const navigate = useNavigate();
-  const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, leaveGame, connectionStatus, reconnectInfo } = useGame(token);
   const { play, toggleMute, muted } = useSound();
   const cellSize = useResponsiveCellSize();
 
@@ -239,7 +239,7 @@ export default function PlaceShips() {
       <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => { setLeaving(true); resetGame(); navigate('/lobby'); }}
+            onClick={() => { setLeaving(true); leaveGame(gameId); resetGame(); navigate('/lobby'); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium tracking-wider hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors"
           >
             <span>←</span> Lobby

@@ -84,6 +84,11 @@ public class GameController {
     public void joinRoom(GameMessage msg, Principal principal) {
         if (principal == null) return;
         String playerId = principal.getName();
+        if (msg.getGameId() == null || msg.getGameId().isBlank()) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Código da sala é obrigatório"));
+            return;
+        }
         try {
             Game game = gameService.joinGame(msg.getGameId(), playerId);
             sendGameStateToPlayers(game);
@@ -121,15 +126,23 @@ public class GameController {
         if (principal == null) return;
         String playerId = principal.getName();
         try {
-            if (msg.getShipType() == null || msg.getOrientation() == null || msg.getGameId() == null) {
+            if (msg.getGameId() == null || msg.getShipType() == null || msg.getOrientation() == null
+                    || msg.getRow() == null || msg.getCol() == null) {
                 messaging.convertAndSendToUser(playerId, "/topic/game/error",
                         Map.of("message", "Dados incompletos para posicionar navio"));
+                return;
+            }
+            int row = msg.getRow();
+            int col = msg.getCol();
+            if (row < 0 || row >= 10 || col < 0 || col >= 10) {
+                messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                        Map.of("message", "Posição fora dos limites do tabuleiro"));
                 return;
             }
             gameService.placeShip(
                     msg.getGameId(), playerId,
                     ShipType.valueOf(msg.getShipType()),
-                    msg.getRow(), msg.getCol(),
+                    row, col,
                     Orientation.valueOf(msg.getOrientation()));
             Game game = gameService.getGame(msg.getGameId());
             sendGameStateToPlayers(game);
@@ -138,6 +151,9 @@ public class GameController {
             if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
                 scheduleBotTurn(game);
             }
+        } catch (IllegalArgumentException e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", e.getMessage() != null ? e.getMessage() : "Dados inválidos"));
         } catch (Exception e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
                     Map.of("message", e.getMessage() != null ? e.getMessage() : "Erro ao posicionar navio"));
@@ -148,13 +164,47 @@ public class GameController {
     public void shoot(GameMessage msg, Principal principal) {
         if (principal == null) return;
         String playerId = principal.getName();
-        gameService.shoot(msg.getGameId(), playerId, msg.getRow(), msg.getCol());
-        Game game = gameService.getGame(msg.getGameId());
-        sendGameStateToPlayers(game);
+        if (msg.getGameId() == null || msg.getRow() == null || msg.getCol() == null) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Dados incompletos para disparo"));
+            return;
+        }
+        int row = msg.getRow();
+        int col = msg.getCol();
+        if (row < 0 || row >= 10 || col < 0 || col >= 10) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Posição fora dos limites do tabuleiro"));
+            return;
+        }
+        try {
+            gameService.shoot(msg.getGameId(), playerId, row, col);
+            Game game = gameService.getGame(msg.getGameId());
+            sendGameStateToPlayers(game);
 
-        // Se é singleplayer e agora é o turno do bot, o bot responde
-        if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
-            scheduleBotTurn(game);
+            // Se é singleplayer e agora é o turno do bot, o bot responde
+            if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
+                scheduleBotTurn(game);
+            }
+        } catch (Exception e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", e.getMessage() != null ? e.getMessage() : "Erro ao disparar"));
+        }
+    }
+
+    @MessageMapping("/game/leave")
+    public void leaveGame(GameMessage msg, Principal principal) {
+        if (principal == null) return;
+        String playerId = principal.getName();
+        if (msg.getGameId() == null) return;
+        try {
+            // Limpar estado do bot se for singleplayer
+            if (singlePlayerGames.contains(msg.getGameId())) {
+                botService.cleanup(msg.getGameId());
+                singlePlayerGames.remove(msg.getGameId());
+            }
+            gameService.abandonGame(msg.getGameId(), playerId);
+        } catch (Exception e) {
+            // Silently ignore — player is leaving anyway
         }
     }
 
@@ -162,12 +212,18 @@ public class GameController {
     public void sendEmote(EmoteMessage msg, Principal principal) {
         if (principal == null) return;
         String playerId = principal.getName();
-        Game game = gameService.getGame(msg.getGameId());
-        String opponentId = game.getOpponentId(playerId);
-        if (opponentId != null && !opponentId.equals(BotService.BOT_ID)) {
-            msg.setFromPlayer(playerId);
-            messaging.convertAndSendToUser(opponentId,
-                    "/topic/game/" + game.getId() + "/emote", msg);
+        if (msg.getGameId() == null) return;
+        try {
+            Game game = gameService.getGame(msg.getGameId());
+            if (game == null) return;
+            String opponentId = game.getOpponentId(playerId);
+            if (opponentId != null && !opponentId.equals(BotService.BOT_ID)) {
+                msg.setFromPlayer(playerId);
+                messaging.convertAndSendToUser(opponentId,
+                        "/topic/game/" + game.getId() + "/emote", msg);
+            }
+        } catch (Exception e) {
+            // Silently ignore emote errors — not critical
         }
     }
 
@@ -175,6 +231,11 @@ public class GameController {
     public void surrender(GameMessage msg, Principal principal) {
         if (principal == null) return;
         String playerId = principal.getName();
+        if (msg.getGameId() == null) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "gameId é obrigatório"));
+            return;
+        }
         try {
             Game game = gameService.surrender(msg.getGameId(), playerId);
             sendGameStateToPlayers(game);
@@ -194,6 +255,11 @@ public class GameController {
     public void rematch(GameMessage msg, Principal principal) {
         if (principal == null) return;
         String playerId = principal.getName();
+        if (msg.getGameId() == null) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "gameId é obrigatório"));
+            return;
+        }
         try {
             Game oldGame = gameService.getGame(msg.getGameId());
             // Apenas jogadores da partida podem pedir rematch
@@ -254,26 +320,35 @@ public class GameController {
         scheduler.schedule(() -> executeBotTurn(game), 1, TimeUnit.SECONDS);
     }
 
+    private static final int MAX_BOT_RETRIES = 100;
+
     private void executeBotTurn(Game game) {
         if (game.getPhase() != GamePhase.IN_PROGRESS) return;
         if (!BotService.BOT_ID.equals(game.getCurrentTurnPlayerId())) return;
 
-        int[] shot = botService.chooseShot(game.getId());
-        if (shot == null) return;
+        // Loop com limite para evitar recursão infinita caso o bot escolha células já atacadas
+        ShotOutcome outcome = null;
+        int attempts = 0;
+        while (outcome == null && attempts < MAX_BOT_RETRIES) {
+            int[] shot = botService.chooseShot(game.getId());
+            if (shot == null) return;
 
-        ShotOutcome outcome = game.shoot(BotService.BOT_ID, shot[0], shot[1]);
+            outcome = game.shoot(BotService.BOT_ID, shot[0], shot[1]);
+            if (outcome != null) {
+                // Se acertou, registra para Hunt/Target
+                if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
+                    botService.registerHit(game.getId(), shot[0], shot[1]);
+                }
+                if (outcome.getResult() == ShotResult.SUNK) {
+                    botService.registerSunk(game.getId(), shot[0], shot[1]);
+                }
+            }
+            attempts++;
+        }
+
         if (outcome == null) {
-            // Tiro inválido (célula já atacada), tenta outro
-            executeBotTurn(game);
+            // Bot não conseguiu encontrar célula válida após MAX_BOT_RETRIES tentativas
             return;
-        }
-
-        // Se acertou, registra para Hunt/Target
-        if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
-            botService.registerHit(game.getId(), shot[0], shot[1]);
-        }
-        if (outcome.getResult() == ShotResult.SUNK) {
-            botService.registerSunk(game.getId(), shot[0], shot[1]);
         }
 
         sendGameStateToPlayers(game);

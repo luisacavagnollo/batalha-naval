@@ -20,7 +20,7 @@ export default function Lobby() {
   const [showProfile, setShowProfile] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const dropdownRef = useRef(null);
-  const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame, connectionStatus, reconnectInfo, joinMatchmaking, leaveMatchmaking } = useGame(token);
+  const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame, leaveGame, connectionStatus, reconnectInfo, joinMatchmaking, leaveMatchmaking } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const navigate = useNavigate();
   const [searching, setSearching] = useState(false);
@@ -28,7 +28,15 @@ export default function Lobby() {
   useEffect(() => {
     resetGame();
     fetchRanking().then(data => { if (data) setRanking(data); });
-    fetchProfile(token).then(data => { if (data) setMoedas(data.moedas); });
+    fetchProfile(token).then(data => {
+      if (data?._unauthorized) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        navigate('/');
+        return;
+      }
+      if (data) setMoedas(data.moedas);
+    });
   }, [resetGame, token]);
 
   // Fechar dropdown ao clicar fora
@@ -61,6 +69,13 @@ export default function Lobby() {
       subscribeToGame(roomCode);
     }
   }, [roomCode, subscribeToGame]);
+
+  // Resetar searching se a conexão cair (backend perde o estado da fila)
+  useEffect(() => {
+    if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
+      setSearching(false);
+    }
+  }, [connectionStatus]);
 
   const handleCreate = async () => {
     play('click');
@@ -206,7 +221,7 @@ export default function Lobby() {
                       title="Código da sala"
                       subtitle={roomCode}
                       description="Compartilhe este código com seu oponente"
-                      onCancel={() => resetGame()}
+                      onCancel={() => { leaveGame(roomCode); resetGame(); }}
                     />
                   </div>
                 </div>

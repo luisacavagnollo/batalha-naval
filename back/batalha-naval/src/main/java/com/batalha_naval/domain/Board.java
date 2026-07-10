@@ -38,6 +38,8 @@ public class Board {
     }
 
     public ShotOutcome receiveShot(int row, int col) {
+        if (row < 0 || row >= 10 || col < 0 || col >= 10)
+            return null;
         if (grid[row][col] == CellState.MISS || grid[row][col] == CellState.HIT)
             return null;
 

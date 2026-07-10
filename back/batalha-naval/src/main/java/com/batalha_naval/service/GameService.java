@@ -9,6 +9,7 @@ import com.batalha_naval.repository.GameRecordRepository;
 import com.batalha_naval.repository.PlayerStatsRepository;
 import com.batalha_naval.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,7 +46,11 @@ public class GameService {
     public Game joinGame(String code, String playerId) {
         Game game = games.get(code.toUpperCase());
         if (game == null) {
-            throw new IllegalArgumentException("Sala não encontrada: " + code);
+            throw new IllegalArgumentException("Sala não encontrada");
+        }
+        // Partida solo não aceita outros jogadores
+        if ("BOT".equals(game.getPlayer2Id())) {
+            throw new IllegalArgumentException("Sala não encontrada");
         }
         if (game.getPlayer2Id() != null) {
             throw new IllegalStateException("Sala já está cheia");
@@ -77,6 +82,7 @@ public class GameService {
         return result;
     }
 
+    @Transactional
     public ShotOutcome shoot(String gameId, String playerId, int row, int col) {
         Game game = getGame(gameId);
         game.touchActivity();
@@ -160,6 +166,7 @@ public class GameService {
                 .orElse(0);
     }
 
+    @Transactional
     public Game surrender(String gameId, String playerId) {
         Game game = getGame(gameId);
         if (game.getPhase() == GamePhase.FINISHED) {
@@ -170,6 +177,38 @@ public class GameService {
         game.setWinnerId(opponentId);
         persistGameResult(game);
         return game;
+    }
+
+    /**
+     * Abandona um jogo sem registrar resultado (para saída durante PLACING_SHIPS ou partidas solo).
+     * Remove o jogo da memória imediatamente.
+     */
+    public void abandonGame(String gameId, String playerId) {
+        Game game = games.get(gameId);
+        if (game == null) return;
+        // Verificar se o jogador faz parte desta partida
+        if (!playerId.equals(game.getPlayer1Id()) && !playerId.equals(game.getPlayer2Id())) {
+            return;
+        }
+        // Se já terminou, apenas remove da memória
+        if (game.getPhase() == GamePhase.FINISHED) {
+            games.remove(gameId);
+            codeToGameId.remove(gameId);
+            return;
+        }
+        // Se está em PLACING_SHIPS (ninguém jogou ainda), remove sem registrar
+        if (game.getPhase() == GamePhase.PLACING_SHIPS) {
+            games.remove(gameId);
+            codeToGameId.remove(gameId);
+            return;
+        }
+        // Se está IN_PROGRESS, tratar como surrender (registra derrota)
+        String opponentId = game.getOpponentId(playerId);
+        game.setPhase(GamePhase.FINISHED);
+        game.setWinnerId(opponentId);
+        persistGameResult(game);
+        games.remove(gameId);
+        codeToGameId.remove(gameId);
     }
 
     public Game rematch(String oldGameId) {

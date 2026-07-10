@@ -1,3 +1,5 @@
+import { memo, useCallback } from 'react';
+
 const OCEAN_COLORS = [
   'from-[#0a1a2e] to-[#0f2640]',
   'from-[#081422] to-[#0c1e35]',
@@ -16,20 +18,9 @@ const GAP = 2;
 
 /**
  * Renderiza um grid 10x10 genérico.
- * 
- * Props:
- * - cellSize: tamanho de cada célula em px
- * - board: array 10x10 de CellState (ou null para grid vazio)
- * - sunkCells: Set de "row,col" para marcar como afundado
- * - onCellClick: (row, col) => void
- * - onCellHover: (row, col) => void
- * - onMouseLeave: () => void
- * - getCellClass: (row, col) => classe extra para a célula (hover, highlight, etc.)
- * - active: se true, mostra cursor-crosshair e hover nos EMPTYs
- * - backgroundChildren: conteúdo absoluto atrás do grid (peixes, etc.)
- * - children: conteúdo absoluto sobre o grid (navios, etc.)
+ * Memoizado para evitar re-renders desnecessários.
  */
-export default function BoardGrid({
+const BoardGrid = memo(function BoardGrid({
   cellSize,
   board,
   sunkCells,
@@ -81,6 +72,7 @@ export default function BoardGrid({
       {children}
     </div>
   );
-}
+});
 
+export default BoardGrid;
 export { GAP, OCEAN_COLORS, getOceanClass };

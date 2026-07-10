@@ -524,11 +524,15 @@ export default function Game() {
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
   const cellSize = useResponsiveCellSize();
   const prevGameStateRef = useRef(null);
+  const gameOverTimerRef = useRef(null);
 
   useEffect(() => {
     connect().then(() => subscribeToGame(gameId));
     startMusic();
-    return () => stopMusic();
+    return () => {
+      stopMusic();
+      if (gameOverTimerRef.current) clearTimeout(gameOverTimerRef.current);
+    };
   }, [connect, subscribeToGame, gameId, startMusic, stopMusic]);
 
   // Sons baseados no gameState
@@ -570,7 +574,7 @@ export default function Game() {
   useEffect(() => {
     if (gameState?.phase === 'FINISHED' && !gameFinished) {
       setGameFinished(true);
-      setTimeout(() => {
+      gameOverTimerRef.current = setTimeout(() => {
         navigate(`/game-over?winner=${gameState.winnerId}&gameId=${gameId}`);
       }, 5000);
     }

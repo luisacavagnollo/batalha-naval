@@ -91,6 +91,11 @@ export function GameProvider({ children }) {
   const intentionalDisconnectRef = useRef(false);
   const emoteTimerRef = useRef(null);
 
+  // Map de gameId -> array de subscriptions para cleanup
+  const gameSubscriptionsRef = useRef(new Map());
+  // Subscriptions globais (created, error)
+  const globalSubscriptionsRef = useRef([]);
+
   // Helpers
   const clearReconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -101,8 +106,50 @@ export function GameProvider({ children }) {
     isReconnectingRef.current = false;
   }, []);
 
+  const handleEmoteReceived = useCallback((emoteData) => {
+    dispatch({ type: 'SET_EMOTE', payload: emoteData });
+    if (emoteTimerRef.current) clearTimeout(emoteTimerRef.current);
+    emoteTimerRef.current = setTimeout(() => {
+      dispatch({ type: 'SET_EMOTE', payload: null });
+    }, 3000);
+  }, []);
+
+  // Desinscreve de um jogo específico
+  const unsubscribeFromGame = useCallback((gameId) => {
+    const subs = gameSubscriptionsRef.current.get(gameId);
+    if (subs) {
+      subs.forEach(sub => {
+        try { sub.unsubscribe(); } catch (e) { /* ignore if already disconnected */ }
+      });
+      gameSubscriptionsRef.current.delete(gameId);
+    }
+    subscribedGamesRef.current.delete(gameId);
+  }, []);
+
+  // Desinscreve todas as subscriptions globais
+  const unsubscribeGlobals = useCallback(() => {
+    globalSubscriptionsRef.current.forEach(sub => {
+      try { sub.unsubscribe(); } catch (e) { /* ignore */ }
+    });
+    globalSubscriptionsRef.current = [];
+  }, []);
+
+  // Desinscreve de todos os jogos
+  const unsubscribeAll = useCallback(() => {
+    gameSubscriptionsRef.current.forEach((subs, gameId) => {
+      subs.forEach(sub => {
+        try { sub.unsubscribe(); } catch (e) { /* ignore */ }
+      });
+    });
+    gameSubscriptionsRef.current.clear();
+    unsubscribeGlobals();
+  }, [unsubscribeGlobals]);
+
   const setupSubscriptions = useCallback((client) => {
-    client.subscribe('/user/topic/game/created', (msg) => {
+    // Limpa globais anteriores antes de re-subscrever
+    unsubscribeGlobals();
+
+    const sub1 = client.subscribe('/user/topic/game/created', (msg) => {
       const data = JSON.parse(msg.body);
       if (data.rematch) {
         subscribeToGame(data.gameId);
@@ -116,35 +163,37 @@ export function GameProvider({ children }) {
       }
     });
 
-    client.subscribe('/user/topic/game/error', (msg) => {
+    const sub2 = client.subscribe('/user/topic/game/error', (msg) => {
       const data = JSON.parse(msg.body);
       dispatch({ type: 'SET_ERROR', payload: data.message });
     });
 
+    globalSubscriptionsRef.current = [sub1, sub2];
+
     // Re-subscrever jogos ativos após reconexão
     subscribedGamesRef.current.forEach(gameId => {
-      client.subscribe(`/user/topic/game/${gameId}`, (msg) => {
-        dispatch({ type: 'SET_GAME_STATE', payload: JSON.parse(msg.body) });
-      });
-      client.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
-        handleEmoteReceived(JSON.parse(msg.body));
-      });
-      client.subscribe(`/user/topic/game/${gameId}/rematch-request`, () => {
-        dispatch({ type: 'SET_REMATCH_REQUESTED', payload: true });
-      });
-      client.subscribe(`/user/topic/game/${gameId}/rematch-pending`, () => {
-        dispatch({ type: 'SET_REMATCH_PENDING', payload: true });
-      });
-    });
-  }, []);
+      // Limpa subscriptions antigas deste game (se existirem de conexão anterior)
+      const oldSubs = gameSubscriptionsRef.current.get(gameId);
+      if (oldSubs) {
+        oldSubs.forEach(sub => { try { sub.unsubscribe(); } catch (e) { /* ignore */ } });
+      }
 
-  const handleEmoteReceived = useCallback((emoteData) => {
-    dispatch({ type: 'SET_EMOTE', payload: emoteData });
-    if (emoteTimerRef.current) clearTimeout(emoteTimerRef.current);
-    emoteTimerRef.current = setTimeout(() => {
-      dispatch({ type: 'SET_EMOTE', payload: null });
-    }, 3000);
-  }, []);
+      const subs = [];
+      subs.push(client.subscribe(`/user/topic/game/${gameId}`, (msg) => {
+        dispatch({ type: 'SET_GAME_STATE', payload: JSON.parse(msg.body) });
+      }));
+      subs.push(client.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
+        handleEmoteReceived(JSON.parse(msg.body));
+      }));
+      subs.push(client.subscribe(`/user/topic/game/${gameId}/rematch-request`, () => {
+        dispatch({ type: 'SET_REMATCH_REQUESTED', payload: true });
+      }));
+      subs.push(client.subscribe(`/user/topic/game/${gameId}/rematch-pending`, () => {
+        dispatch({ type: 'SET_REMATCH_PENDING', payload: true });
+      }));
+      gameSubscriptionsRef.current.set(gameId, subs);
+    });
+  }, [handleEmoteReceived, unsubscribeGlobals]);
 
   const scheduleReconnect = useCallback(() => {
     if (reconnectAttemptsRef.current >= RECONNECT_CONFIG.maxAttempts) {
@@ -267,38 +316,50 @@ export function GameProvider({ children }) {
     clearReconnect();
     intentionalDisconnectRef.current = true;
     tokenRef.current = null;
+    // Desinscreve tudo antes de desativar
+    unsubscribeAll();
     clientRef.current?.deactivate();
     clientRef.current = null;
     connectedPromiseRef.current = null;
     dispatch({ type: 'SET_CONNECTED', payload: false });
     dispatch({ type: 'SET_CONNECTION_STATUS', payload: 'disconnected' });
     dispatch({ type: 'SET_RECONNECT_INFO', payload: null });
-  }, [clearReconnect]);
+  }, [clearReconnect, unsubscribeAll]);
 
   const resetGame = useCallback(() => {
-    dispatch({ type: 'RESET_GAME' });
+    // Desinscreve de todos os jogos ativos
+    gameSubscriptionsRef.current.forEach((subs) => {
+      subs.forEach(sub => { try { sub.unsubscribe(); } catch (e) { /* ignore */ } });
+    });
+    gameSubscriptionsRef.current.clear();
     subscribedGamesRef.current = new Set();
+    dispatch({ type: 'RESET_GAME' });
   }, []);
 
   const subscribeToGame = useCallback((gameId) => {
     if (!clientRef.current || subscribedGamesRef.current.has(gameId)) return;
     subscribedGamesRef.current.add(gameId);
 
-    clientRef.current.subscribe(`/user/topic/game/${gameId}`, (msg) => {
+    const subs = [];
+
+    subs.push(clientRef.current.subscribe(`/user/topic/game/${gameId}`, (msg) => {
       dispatch({ type: 'SET_GAME_STATE', payload: JSON.parse(msg.body) });
-    });
+    }));
 
-    clientRef.current.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
+    subs.push(clientRef.current.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
       handleEmoteReceived(JSON.parse(msg.body));
-    });
+    }));
 
-    clientRef.current.subscribe(`/user/topic/game/${gameId}/rematch-request`, () => {
+    subs.push(clientRef.current.subscribe(`/user/topic/game/${gameId}/rematch-request`, () => {
       dispatch({ type: 'SET_REMATCH_REQUESTED', payload: true });
-    });
+    }));
 
-    clientRef.current.subscribe(`/user/topic/game/${gameId}/rematch-pending`, () => {
+    subs.push(clientRef.current.subscribe(`/user/topic/game/${gameId}/rematch-pending`, () => {
       dispatch({ type: 'SET_REMATCH_PENDING', payload: true });
-    });
+    }));
+
+    // Armazena referências das subscriptions para cleanup posterior
+    gameSubscriptionsRef.current.set(gameId, subs);
   }, [handleEmoteReceived]);
 
   const createRoom = useCallback(() => {
@@ -362,21 +423,30 @@ export function GameProvider({ children }) {
     clientRef.current?.publish({ destination: '/app/game/matchmaking/leave', body: '{}' });
   }, []);
 
+  const leaveGame = useCallback((gameId) => {
+    if (!gameId) return;
+    clientRef.current?.publish({
+      destination: '/app/game/leave',
+      body: JSON.stringify({ gameId }),
+    });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (emoteTimerRef.current) clearTimeout(emoteTimerRef.current);
+      unsubscribeAll();
     };
-  }, []);
+  }, [unsubscribeAll]);
 
   const actions = useMemo(() => ({
-    connect, disconnect, resetGame, subscribeToGame,
+    connect, disconnect, resetGame, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
-    shoot, sendEmote, requestRematch, surrender,
+    shoot, sendEmote, requestRematch, surrender, leaveGame,
     joinMatchmaking, leaveMatchmaking,
-  }), [connect, disconnect, resetGame, subscribeToGame,
+  }), [connect, disconnect, resetGame, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
-    shoot, sendEmote, requestRematch, surrender,
+    shoot, sendEmote, requestRematch, surrender, leaveGame,
     joinMatchmaking, leaveMatchmaking]);
 
   const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
@@ -422,6 +492,7 @@ export function useGame(token) {
     disconnect: actions.disconnect,
     resetGame: actions.resetGame,
     subscribeToGame: actions.subscribeToGame,
+    unsubscribeFromGame: actions.unsubscribeFromGame,
     createRoom: actions.createRoom,
     startSinglePlayer: actions.startSinglePlayer,
     joinRoom: actions.joinRoom,
@@ -430,6 +501,7 @@ export function useGame(token) {
     sendEmote: actions.sendEmote,
     requestRematch: actions.requestRematch,
     surrender: actions.surrender,
+    leaveGame: actions.leaveGame,
     joinMatchmaking: actions.joinMatchmaking,
     leaveMatchmaking: actions.leaveMatchmaking,
   };

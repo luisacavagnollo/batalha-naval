@@ -19,6 +19,22 @@ public class UserService {
     }
 
     public User register(String username, String email, String password) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Nome de usuário é obrigatório");
+        }
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("E-mail é obrigatório");
+        }
+        if (password == null || password.length() < 4) {
+            throw new IllegalArgumentException("Senha deve ter no mínimo 4 caracteres");
+        }
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("Nome de usuário já está em uso");
+        }
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("E-mail já está cadastrado");
+        }
+
         var user = new User();
         user.setUsername(username);
         user.setEmail(email);

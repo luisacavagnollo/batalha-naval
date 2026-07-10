@@ -16,7 +16,10 @@ export async function register(username, email, password) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, email, password }),
   });
-  if (!res.ok) throw new Error('Registro falhou');
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error || 'Registro falhou');
+  }
   return res.json();
 }
 
@@ -34,10 +37,7 @@ export async function fetchProfile(token) {
     headers: { 'Authorization': `Bearer ${token}` },
   });
   if (res.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    window.location.href = '/';
-    return null;
+    return { _unauthorized: true };
   }
   if (!res.ok) return null;
   return res.json();

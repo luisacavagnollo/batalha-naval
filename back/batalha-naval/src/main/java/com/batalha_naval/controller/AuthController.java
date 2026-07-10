@@ -26,10 +26,15 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody AuthRequest request) {
-        User user = userService.register(request.getUsername(), request.getEmail(), request.getPassword());
-        String token = jwtUtil.generateToken(user.getUsername());
-        return ResponseEntity.ok(new AuthResponse(token, user.getUsername()));
+    public ResponseEntity<?> register(@RequestBody AuthRequest request) {
+        try {
+            User user = userService.register(request.getUsername(), request.getEmail(), request.getPassword());
+            String token = jwtUtil.generateToken(user.getUsername());
+            return ResponseEntity.ok(new AuthResponse(token, user.getUsername()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(409)
+                    .body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/login")
