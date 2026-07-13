@@ -272,7 +272,7 @@ public class GameController {
             }
 
             // Se é singleplayer, cria imediatamente
-            if (singlePlayerGames.contains(msg.getGameId())) {
+            if (BotService.BOT_ID.equals(oldGame.getPlayer2Id())) {
                 Game newGame = gameService.rematch(msg.getGameId());
                 singlePlayerGames.add(newGame.getId());
                 newGame.setPlayer2Id(BotService.BOT_ID);
@@ -416,6 +416,12 @@ public class GameController {
         String mySkin = playerId.equals(game.getPlayer1Id()) ? p1Skin : p2Skin;
         String opponentSkin = playerId.equals(game.getPlayer1Id()) ? p2Skin : p1Skin;
 
+        // Nome do oponente
+        String opponentId = game.getOpponentId(playerId);
+        String opponentName = opponentId != null
+                ? (BotService.BOT_ID.equals(opponentId) ? "Capitão Bot" : opponentId)
+                : null;
+
         // Construir lista de navios do jogador com posições reais
         java.util.List<GameStateResponse.ShipInfo> myShips = myBoard.getShips().stream()
                 .map(ship -> new GameStateResponse.ShipInfo(
@@ -445,6 +451,7 @@ public class GameController {
                 sunkType,
                 mySkin,
                 opponentSkin,
+                opponentName,
                 sunkCells,
                 myShips);
     }

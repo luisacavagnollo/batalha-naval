@@ -402,6 +402,8 @@ export function GameProvider({ children }) {
 
   const requestRematch = useCallback((gameId) => {
     dispatch({ type: 'SET_REMATCH_GAME_ID', payload: null });
+    dispatch({ type: 'SET_REMATCH_PENDING', payload: false });
+    dispatch({ type: 'SET_REMATCH_REQUESTED', payload: false });
     clientRef.current?.publish({
       destination: '/app/game/rematch',
       body: JSON.stringify({ gameId }),

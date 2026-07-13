@@ -14,7 +14,7 @@ export default function GameOver() {
   const token = localStorage.getItem('token');
   const isVictory = winner === username;
   const navigate = useNavigate();
-  const { connect, requestRematch, rematchGameId, rematchPending, rematchRequested, resetGame, subscribeToGame, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, requestRematch, rematchGameId, rematchPending, rematchRequested, resetGame, subscribeToGame, gameState, connectionStatus, reconnectInfo } = useGame(token);
 
   useEffect(() => {
     connect().then(() => {
@@ -37,8 +37,9 @@ export default function GameOver() {
     navigate('/lobby');
   };
 
-  const showWaiting = rematchPending && !rematchRequested;
-  const showOpponentWants = rematchRequested && !rematchPending;
+  const isBotGame = winner === 'BOT' || winner === 'Capitão Bot' || (gameState?.opponentName === 'Capitão Bot');
+  const showWaiting = !isBotGame && rematchPending && !rematchRequested;
+  const showOpponentWants = !isBotGame && rematchRequested && !rematchPending;
 
   return (
     <PirateBackground>
@@ -66,7 +67,7 @@ export default function GameOver() {
             <p className="text-[#C6AE78] text-sm mb-8 font-['Cinzel',_serif]">
               {isVictory
                 ? 'Todos os navios inimigos foram afundados.'
-                : `${winner} venceu esta partida.`}
+                : `${winner === 'BOT' ? 'Capitão Bot' : winner} venceu esta partida.`}
             </p>
 
             {/* Notificação de revanche do oponente */}

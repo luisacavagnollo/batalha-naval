@@ -15,12 +15,13 @@ public class GameStateResponse {
     private String sunkShipType;
     private String mySkin;
     private String opponentSkin;
+    private String opponentName;
     private List<int[]> sunkShipCells;
     private List<ShipInfo> myShips;
 
     public GameStateResponse() {}
 
-    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType, String mySkin, String opponentSkin, List<int[]> sunkShipCells, List<ShipInfo> myShips) {
+    public GameStateResponse(String gameId, String phase, String currentTurn, CellState[][] myBoard, CellState[][] opponentBoard, boolean isMyTurn, String winnerId, String lastShotResult, String sunkShipType, String mySkin, String opponentSkin, String opponentName, List<int[]> sunkShipCells, List<ShipInfo> myShips) {
         this.gameId = gameId;
         this.phase = phase;
         this.currentTurn = currentTurn;
@@ -32,6 +33,7 @@ public class GameStateResponse {
         this.sunkShipType = sunkShipType;
         this.mySkin = mySkin;
         this.opponentSkin = opponentSkin;
+        this.opponentName = opponentName;
         this.sunkShipCells = sunkShipCells;
         this.myShips = myShips;
     }
@@ -58,6 +60,8 @@ public class GameStateResponse {
     public void setMySkin(String mySkin) { this.mySkin = mySkin; }
     public String getOpponentSkin() { return opponentSkin; }
     public void setOpponentSkin(String opponentSkin) { this.opponentSkin = opponentSkin; }
+    public String getOpponentName() { return opponentName; }
+    public void setOpponentName(String opponentName) { this.opponentName = opponentName; }
     public List<int[]> getSunkShipCells() { return sunkShipCells; }
     public void setSunkShipCells(List<int[]> sunkShipCells) { this.sunkShipCells = sunkShipCells; }
     public List<ShipInfo> getMyShips() { return myShips; }

@@ -378,10 +378,12 @@ function MyBoard({ board, skinShips, cellSize, serverShips }) {
 function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips, sunkShipTypes, sunkCellsSet }) {
   if (!board) return null;
   const ships = revealed ? assignShipData(detectShips(board), board, skinShips) : [];
+  const [hoverCell, setHoverCell] = useState(null);
   const sunkCells = sunkCellsSet || new Set();
 
   return (
-    <div className={`relative overflow-hidden rounded-md ${active ? 'ring-2 ring-[#B98B2F]/50' : ''}`}>
+    <div className={`relative overflow-hidden rounded-md ${active ? 'ring-2 ring-[#B98B2F]/50' : ''}`}
+      onMouseLeave={() => setHoverCell(null)}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <img src="/fish/right/fish2.png" alt="" className="absolute top-[18%] h-8 opacity-[0.15] animate-[swim-right_16s_linear_infinite] [animation-delay:2s]" />
         <img src="/fish/left/fish1.png" alt="" className="absolute top-[42%] h-6 opacity-[0.17] animate-[swim-left_13s_linear_infinite] [animation-delay:6s]" />
@@ -395,11 +397,22 @@ function OpponentBoard({ board, onClick, active, cellSize, revealed, skinShips, 
           const col = i % 10;
           const isSunk = sunkCells.has(`${row},${col}`);
           const oceanClass = getOceanClass(row, col, cell, isSunk);
-          const hover = active && cell === 'EMPTY' ? 'hover:bg-[#C84A3A]/40' : '';
+          const isHovered = hoverCell && hoverCell.row === row && hoverCell.col === col;
+          const isInCrosshair = active && hoverCell && (hoverCell.row === row || hoverCell.col === col) && !isHovered;
+          const canTarget = active && cell === 'EMPTY';
+
+          let cellClass = oceanClass;
+          if (isHovered && canTarget) {
+            cellClass = 'bg-[#C84A3A]/60 ring-1 ring-[#C84A3A] ring-inset';
+          } else if (isInCrosshair && cell === 'EMPTY') {
+            cellClass = `${oceanClass} brightness-125 border border-[#C84A3A]/20`;
+          }
+
           return (
             <div key={i} style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
-              className={`rounded-sm ${active ? 'cursor-crosshair' : 'cursor-default'} ${oceanClass} ${hover} transition-colors`}
-              onClick={() => onClick?.(row, col)} />
+              className={`rounded-sm ${active ? 'cursor-crosshair' : 'cursor-default'} ${cellClass} transition-all duration-75`}
+              onClick={() => onClick?.(row, col)}
+              onMouseEnter={() => active && setHoverCell({ row, col })} />
           );
         })}
       </div>
@@ -588,7 +601,7 @@ export default function Game() {
                 {/* Tabuleiro oponente */}
                 <UIPanel variant="default" size="sm" className={`relative overflow-visible ${gameState?.myTurn && !gameFinished ? 'animate-[pulse-glow_2s_ease-in-out_infinite]' : ''}`}>
                   <h2 className="text-center text-[#C6AE78] text-xs font-bold tracking-[0.15em] mb-3 uppercase font-['Cinzel',_serif]">
-                    Oponente
+                    {gameState?.opponentName || 'Oponente'}
                   </h2>
                   <OpponentBoard board={gameState?.opponentBoard} onClick={handleShoot}
                     active={gameState?.myTurn && !gameFinished} cellSize={cellSize}
@@ -600,12 +613,12 @@ export default function Game() {
               {/* Mobile ship lists */}
               <div className="flex flex-col sm:flex-row gap-4 w-full">
                 <ShipList ships={myShipsStatus} title="Minha Frota" align="left" mobile={true} />
-                <ShipList ships={opponentShipsStatus} title="Frota Inimiga" align="right" mobile={true} />
+                <ShipList ships={opponentShipsStatus} title={gameState?.opponentName ? `Frota de ${gameState.opponentName}` : 'Frota Inimiga'} align="right" mobile={true} />
               </div>
             </div>
 
             {/* Desktop ship list - right */}
-            <ShipList ships={opponentShipsStatus} title="Frota Inimiga" align="right" mobile={false} />
+            <ShipList ships={opponentShipsStatus} title={gameState?.opponentName ? `Frota de ${gameState.opponentName}` : 'Frota Inimiga'} align="right" mobile={false} />
           </div>
         </div>
 
