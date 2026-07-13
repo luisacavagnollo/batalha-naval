@@ -259,8 +259,10 @@ public class GameService {
      * - PLACING_SHIPS sem atividade há mais de 10 minutos
      * - IN_PROGRESS sem atividade há mais de 30 minutos
      * - FINISHED há mais de 5 minutos (cleanup de memória)
+     * 
+     * @return lista de gameIds removidos
      */
-    public int cleanupAbandonedGames() {
+    public List<String> cleanupAbandonedGames() {
         long now = System.currentTimeMillis();
         List<String> toRemove = new ArrayList<>();
 
@@ -282,6 +284,6 @@ public class GameService {
             codeToGameId.remove(id);
         }
 
-        return toRemove.size();
+        return toRemove;
     }
 }

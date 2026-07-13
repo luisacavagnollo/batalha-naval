@@ -30,6 +30,8 @@ public class GameController {
 
     // Guarda quais games são singleplayer
     private final Set<String> singlePlayerGames = ConcurrentHashMap.newKeySet();
+    // Evita execução simultânea do bot para o mesmo jogo
+    private final Set<String> botTurnInProgress = ConcurrentHashMap.newKeySet();
     private final com.batalha_naval.service.MatchmakingService matchmakingService;
 
     public GameController(GameService gameService, BotService botService, SimpMessagingTemplate messaging, com.batalha_naval.service.MatchmakingService matchmakingService) {
@@ -316,52 +318,75 @@ public class GameController {
                 && BotService.BOT_ID.equals(game.getCurrentTurnPlayerId());
     }
 
+    /**
+     * Chamado pelo scheduler para limpar IDs órfãos de jogos já removidos.
+     */
+    public void cleanupOrphanedSinglePlayerGames(java.util.List<String> removedGameIds) {
+        for (String id : removedGameIds) {
+            singlePlayerGames.remove(id);
+            botTurnInProgress.remove(id);
+        }
+    }
+
     private void scheduleBotTurn(Game game) {
         scheduler.schedule(() -> executeBotTurn(game), 1, TimeUnit.SECONDS);
     }
 
     private static final int MAX_BOT_RETRIES = 100;
+    private static final int MAX_CONSECUTIVE_TURNS = 50;
 
     private void executeBotTurn(Game game) {
-        if (game.getPhase() != GamePhase.IN_PROGRESS) return;
-        if (!BotService.BOT_ID.equals(game.getCurrentTurnPlayerId())) return;
+        // Guard: impede execução paralela para o mesmo jogo
+        if (!botTurnInProgress.add(game.getId())) {
+            return; // Já há um turno em execução para este jogo
+        }
 
-        // Loop com limite para evitar recursão infinita caso o bot escolha células já atacadas
-        ShotOutcome outcome = null;
-        int attempts = 0;
-        while (outcome == null && attempts < MAX_BOT_RETRIES) {
-            int[] shot = botService.chooseShot(game.getId());
-            if (shot == null) return;
+        try {
+            int consecutiveTurns = 0;
 
-            outcome = game.shoot(BotService.BOT_ID, shot[0], shot[1]);
-            if (outcome != null) {
-                // Se acertou, registra para Hunt/Target
-                if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
-                    botService.registerHit(game.getId(), shot[0], shot[1]);
+            // Loop para turnos consecutivos (bot acertou) ao invés de recursão via scheduler
+            while (isBotTurn(game) && consecutiveTurns < MAX_CONSECUTIVE_TURNS) {
+                ShotOutcome outcome = null;
+                int attempts = 0;
+
+                while (outcome == null && attempts < MAX_BOT_RETRIES) {
+                    int[] shot = botService.chooseShot(game.getId());
+                    if (shot == null) return;
+
+                    outcome = game.shoot(BotService.BOT_ID, shot[0], shot[1]);
+                    if (outcome != null) {
+                        if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
+                            botService.registerHit(game.getId(), shot[0], shot[1]);
+                        }
+                        if (outcome.getResult() == ShotResult.SUNK) {
+                            botService.registerSunk(game.getId(), shot[0], shot[1]);
+                        }
+                    }
+                    attempts++;
                 }
-                if (outcome.getResult() == ShotResult.SUNK) {
-                    botService.registerSunk(game.getId(), shot[0], shot[1]);
+
+                if (outcome == null) {
+                    return; // Bot não conseguiu encontrar célula válida
+                }
+
+                sendGameStateToPlayers(game);
+
+                // Se o jogo acabou, limpa e sai
+                if (game.getPhase() == GamePhase.FINISHED) {
+                    botService.cleanup(game.getId());
+                    singlePlayerGames.remove(game.getId());
+                    return;
+                }
+
+                consecutiveTurns++;
+
+                // Pequena pausa entre turnos consecutivos para o frontend processar
+                if (isBotTurn(game)) {
+                    try { Thread.sleep(800); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
                 }
             }
-            attempts++;
-        }
-
-        if (outcome == null) {
-            // Bot não conseguiu encontrar célula válida após MAX_BOT_RETRIES tentativas
-            return;
-        }
-
-        sendGameStateToPlayers(game);
-
-        // Se o bot ainda tem turno (acertou) e o jogo não acabou, joga novamente
-        if (isBotTurn(game)) {
-            scheduleBotTurn(game);
-        }
-
-        // Limpa estado do bot se o jogo acabou
-        if (game.getPhase() == GamePhase.FINISHED) {
-            botService.cleanup(game.getId());
-            singlePlayerGames.remove(game.getId());
+        } finally {
+            botTurnInProgress.remove(game.getId());
         }
     }
 

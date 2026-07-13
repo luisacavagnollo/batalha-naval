@@ -452,6 +452,19 @@ export default function Game() {
   const prevGameStateRef = useRef(null);
   const gameOverTimerRef = useRef(null);
 
+  // Resetar estado local quando o gameId muda (rematch sem desmontar)
+  useEffect(() => {
+    setSunkOpponentShips([]);
+    setSunkOpponentCells(new Set());
+    setGameFinished(false);
+    setShowSurrenderConfirm(false);
+    prevGameStateRef.current = null;
+    if (gameOverTimerRef.current) {
+      clearTimeout(gameOverTimerRef.current);
+      gameOverTimerRef.current = null;
+    }
+  }, [gameId]);
+
   useEffect(() => {
     connect().then(() => subscribeToGame(gameId));
     startMusic();

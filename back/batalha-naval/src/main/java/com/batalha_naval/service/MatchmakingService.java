@@ -25,25 +25,21 @@ public class MatchmakingService {
      * Adiciona jogador à fila de matchmaking.
      * Retorna o Game se já havia alguém esperando, ou null se entrou na fila.
      */
-    public Game joinQueue(String playerId) {
-        // Se já está na fila, não adiciona de novo
-        if (inQueue.containsKey(playerId)) {
+    public synchronized Game joinQueue(String playerId) {
+        // Se já está na fila, não adiciona de novo (atômico)
+        if (inQueue.putIfAbsent(playerId, Boolean.TRUE) != null) {
             return null;
         }
 
         // Tentar parear com alguém que já está esperando
         String opponent = null;
         while ((opponent = queue.poll()) != null) {
+            // Pular a si mesmo (caso esteja na fila de iteração anterior)
+            if (opponent.equals(playerId)) {
+                continue;
+            }
             // Verificar se o oponente ainda está na fila (pode ter cancelado)
             if (inQueue.remove(opponent) != null) {
-                // Não parear o jogador consigo mesmo (duas abas abertas)
-                if (opponent.equals(playerId)) {
-                    // Devolver o oponente (que é ele mesmo) à fila e sair sem parear
-                    inQueue.put(opponent, Boolean.TRUE);
-                    queue.offer(opponent);
-                    opponent = null;
-                    break;
-                }
                 // Oponente válido encontrado — criar partida
                 break;
             }
@@ -52,6 +48,8 @@ public class MatchmakingService {
         }
 
         if (opponent != null) {
+            // Remover o jogador atual da fila (foi pareado)
+            inQueue.remove(playerId);
             // Parear: criar jogo com o oponente (que chegou primeiro) como player1
             Game game = gameService.createGame(opponent);
             game.setPlayer2Id(playerId);
@@ -60,8 +58,7 @@ public class MatchmakingService {
             return game;
         }
 
-        // Ninguém disponível — entrar na fila
-        inQueue.put(playerId, Boolean.TRUE);
+        // Ninguém disponível — jogador já está no inQueue, adicionar à fila
         queue.offer(playerId);
         return null;
     }

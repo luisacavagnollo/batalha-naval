@@ -19,14 +19,43 @@ export default function Login() {
     e.preventDefault();
     setError('');
 
-    if (isRegister && password !== confirmPassword) {
-      setError('As senhas não coincidem');
-      return;
+    if (isRegister) {
+      // Validação de username
+      const trimmedUsername = username.trim();
+      if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
+        setError('Usuário deve ter entre 3 e 20 caracteres');
+        return;
+      }
+      if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmedUsername)) {
+        setError('Usuário deve começar com letra e conter apenas letras, números e _');
+        return;
+      }
+
+      // Validação de email
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        setError('E-mail inválido');
+        return;
+      }
+
+      // Validação de senha
+      if (password.length < 6) {
+        setError('Senha deve ter no mínimo 6 caracteres');
+        return;
+      }
+      if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+        setError('Senha deve conter pelo menos uma letra e um número');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('As senhas não coincidem');
+        return;
+      }
     }
 
     try {
       if (isRegister) {
-        await register(username, email, password);
+        await register(username.trim(), email.trim(), password);
       } else {
         await login(username, password);
       }

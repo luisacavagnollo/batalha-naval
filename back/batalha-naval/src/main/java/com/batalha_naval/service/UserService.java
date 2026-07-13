@@ -18,16 +18,43 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    private static final int USERNAME_MIN = 3;
+    private static final int USERNAME_MAX = 20;
+    private static final int PASSWORD_MIN = 6;
+    private static final String USERNAME_PATTERN = "^[a-zA-Z][a-zA-Z0-9_]*$";
+    private static final String EMAIL_PATTERN = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
+
     public User register(String username, String email, String password) {
+        // --- Username ---
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Nome de usuário é obrigatório");
         }
+        username = username.trim();
+        if (username.length() < USERNAME_MIN || username.length() > USERNAME_MAX) {
+            throw new IllegalArgumentException("Usuário deve ter entre " + USERNAME_MIN + " e " + USERNAME_MAX + " caracteres");
+        }
+        if (!username.matches(USERNAME_PATTERN)) {
+            throw new IllegalArgumentException("Usuário deve começar com letra e conter apenas letras, números e _");
+        }
+
+        // --- Email ---
         if (email == null || email.isBlank()) {
             throw new IllegalArgumentException("E-mail é obrigatório");
         }
-        if (password == null || password.length() < 4) {
-            throw new IllegalArgumentException("Senha deve ter no mínimo 4 caracteres");
+        email = email.trim().toLowerCase();
+        if (!email.matches(EMAIL_PATTERN)) {
+            throw new IllegalArgumentException("E-mail inválido");
         }
+
+        // --- Senha ---
+        if (password == null || password.length() < PASSWORD_MIN) {
+            throw new IllegalArgumentException("Senha deve ter no mínimo " + PASSWORD_MIN + " caracteres");
+        }
+        if (!password.matches(".*[A-Za-z].*") || !password.matches(".*[0-9].*")) {
+            throw new IllegalArgumentException("Senha deve conter pelo menos uma letra e um número");
+        }
+
+        // --- Duplicatas ---
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("Nome de usuário já está em uso");
         }
