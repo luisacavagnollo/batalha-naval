@@ -174,20 +174,21 @@ function playSynthetic(soundName) {
       break;
     }
     case 'defeat': {
-      const notes = [150, 120, 90, 60];
+      const notes = [440, 370, 311, 220];
       notes.forEach((freq, i) => {
         const osc = ctx.createOscillator();
-        osc.type = 'sine';
+        osc.type = 'sawtooth';
         osc.frequency.value = freq;
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.6, ctx.currentTime + i * 0.35 + 0.5);
         const nGain = ctx.createGain();
-        nGain.gain.value = vol * 0.5;
-        const start = ctx.currentTime + i * 0.3;
-        nGain.gain.setValueAtTime(vol * 0.5, start);
-        nGain.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+        nGain.gain.value = vol * 0.4;
+        const start = ctx.currentTime + i * 0.35;
+        nGain.gain.setValueAtTime(vol * 0.4, start);
+        nGain.gain.exponentialRampToValueAtTime(0.001, start + 0.6);
         osc.connect(nGain);
         nGain.connect(ctx.destination);
         osc.start(start);
-        osc.stop(start + 0.4);
+        osc.stop(start + 0.6);
       });
       break;
     }

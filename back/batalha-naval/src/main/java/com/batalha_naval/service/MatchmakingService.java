@@ -36,6 +36,14 @@ public class MatchmakingService {
         while ((opponent = queue.poll()) != null) {
             // Verificar se o oponente ainda está na fila (pode ter cancelado)
             if (inQueue.remove(opponent) != null) {
+                // Não parear o jogador consigo mesmo (duas abas abertas)
+                if (opponent.equals(playerId)) {
+                    // Devolver o oponente (que é ele mesmo) à fila e sair sem parear
+                    inQueue.put(opponent, Boolean.TRUE);
+                    queue.offer(opponent);
+                    opponent = null;
+                    break;
+                }
                 // Oponente válido encontrado — criar partida
                 break;
             }
@@ -47,6 +55,7 @@ public class MatchmakingService {
             // Parear: criar jogo com o oponente (que chegou primeiro) como player1
             Game game = gameService.createGame(opponent);
             game.setPlayer2Id(playerId);
+            game.setPlayer2Skin(gameService.getPlayerSkin(playerId));
             game.touchActivity();
             return game;
         }

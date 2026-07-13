@@ -3,11 +3,11 @@ export default function TurnIndicator({ gameFinished, gameState, username }) {
 
   const bannerClass = gameFinished
     ? (isWinner
-      ? 'bg-[#8b6914]/20 border border-[#c4983c]/40 text-[#c4983c]'
-      : 'bg-[#8b1a1a]/20 border border-[#8b1a1a]/40 text-[#c45a4a]')
+      ? 'bg-[#B98B2F]/15 border-2 border-[#B98B2F]/50 text-[#D5AE47] shadow-[0_0_15px_rgba(185,139,47,0.2)]'
+      : 'bg-[#8B2A1E]/15 border-2 border-[#C84A3A]/50 text-[#C84A3A]')
     : gameState?.myTurn
-      ? 'bg-[#8b6914]/20 border border-[#c4983c]/40 text-[#c4983c] animate-pulse'
-      : 'bg-[#2a1f15] border border-[#3d2a1a]/30 text-[#5a5048]';
+      ? 'bg-[#B98B2F]/15 border-2 border-[#B98B2F]/50 text-[#D5AE47] animate-pulse shadow-[0_0_15px_rgba(185,139,47,0.3)]'
+      : 'bg-[#2B1D14] border-2 border-[#2E2E2E] text-[#8B7355]';
 
   const bannerText = gameFinished
     ? (isWinner ? 'Vitória' : 'Derrota')
@@ -15,11 +15,11 @@ export default function TurnIndicator({ gameFinished, gameState, username }) {
 
   return (
     <div className="w-full flex flex-col items-center justify-center h-20 sm:h-22">
-      <div className={`px-4 sm:px-8 py-2 sm:py-3 rounded-md text-sm sm:text-base font-bold tracking-wider uppercase font-[MedievalSharp] ${bannerClass}`}>
+      <div className={`px-4 sm:px-8 py-2 sm:py-3 rounded-md text-sm sm:text-base font-bold tracking-wider uppercase font-['Cinzel',_serif] ${bannerClass}`}>
         {bannerText}
       </div>
       {gameState?.sunkShipType && gameState?.lastShotResult === 'SUNK' && (
-        <span className="text-[#c4983c] text-sm font-semibold mt-1">
+        <span className="text-[#D5AE47] text-sm font-bold mt-1 font-['Cinzel',_serif]">
           {gameState.sunkShipType} afundado!
         </span>
       )}

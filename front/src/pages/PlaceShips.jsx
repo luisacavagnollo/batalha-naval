@@ -7,6 +7,9 @@ import ConnectionStatus from '../components/ConnectionStatus';
 import ShipSelector from '../components/ShipSelector';
 import BoardGrid, { GAP } from '../components/BoardGrid';
 import WaitingScreen from '../components/WaitingScreen';
+import PirateBackground from '../components/PirateBackground';
+import UIPanel from '../components/UIPanel';
+import PirateButton from '../components/PirateButton';
 
 const SHIPS_PADRAO_ANTIGO = [
   { type: 'CARRIER', name: 'Porta-aviões', size: 5, img: '/ships/padrao_antigo/carrier_antigo.png' },
@@ -116,7 +119,6 @@ export default function PlaceShips() {
     }
   }, [gameState, gameId, navigate, leaving]);
 
-  // Selecionar primeiro navio automaticamente
   useEffect(() => {
     if (selectedShip === null && SHIPS.length > 0 && placed.length === 0) {
       setSelectedShip(SHIPS[0].type);
@@ -152,7 +154,6 @@ export default function PlaceShips() {
     setHoverCells(cells);
   };
 
-  // Recalcula hover ao mudar orientação
   useEffect(() => {
     if (!hoverPos || !selectedShip) return;
     const shipData = getSelectedShipData();
@@ -170,7 +171,6 @@ export default function PlaceShips() {
     if (!cells || isOccupied(cells, selectedShip)) return;
     play('click');
 
-    // Remove posição anterior se já estava colocado
     const newPlaced = placed.filter(p => p.type !== selectedShip);
     newPlaced.push({
       type: shipData.type,
@@ -184,7 +184,6 @@ export default function PlaceShips() {
     });
     setPlaced(newPlaced);
 
-    // Selecionar próximo navio não posicionado automaticamente
     const placedTypes = newPlaced.map(p => p.type);
     const nextShip = SHIPS.find(s => !placedTypes.includes(s.type));
     setSelectedShip(nextShip ? nextShip.type : null);
@@ -212,158 +211,164 @@ export default function PlaceShips() {
     const heightScale = ship.size <= 2 ? 1.8 : ship.size <= 3 ? 1.3 : 1;
     const shipHeight = cellSize * heightScale;
     const topOffset = top - (shipHeight - cellSize) / 2;
+    const shipLength = ship.size * cellTotal - GAP;
 
     if (ship.orientation === 'HORIZONTAL') {
       return {
         top: `${topOffset}px`,
         left: `${left}px`,
-        width: `${ship.size * cellTotal - GAP}px`,
+        width: `${shipLength}px`,
         height: `${shipHeight}px`,
       };
     } else {
+      // Rotacionar 90° ao redor do centro do navio para manter alinhado às células
+      const centerX = left + cellSize / 2;
+      const centerY = top + shipLength / 2;
+      const rotLeft = centerX - shipLength / 2;
+      const rotTop = centerY - shipHeight / 2;
       return {
-        top: `${topOffset}px`,
-        left: `${left}px`,
-        width: `${ship.size * cellTotal - GAP}px`,
+        top: `${rotTop}px`,
+        left: `${rotLeft}px`,
+        width: `${shipLength}px`,
         height: `${shipHeight}px`,
-        transform: 'rotate(90deg) translateY(-100%)',
-        transformOrigin: 'top left',
+        transform: 'rotate(90deg)',
       };
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#211a14] flex flex-col">
-      <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
-      {/* Header */}
-      <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => { setLeaving(true); leaveGame(gameId); resetGame(); navigate('/lobby'); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium tracking-wider hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors"
-          >
-            <span>←</span> Lobby
-          </button>
-          
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={toggleMute}
-            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-xl"
-            title={muted ? 'Ativar som' : 'Silenciar'}
-          >
-            {muted ? <HiVolumeOff /> : <HiVolumeUp />}
-          </button>
-          <span className="text-[#5a5048] text-sm">{username}</span>
-        </div>
-      </header>
+    <PirateBackground>
+      <div className="min-h-screen flex flex-col">
+        <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
 
-      {/* Conteúdo */}
-      <div className="flex-1 flex items-center justify-center px-2 sm:px-4 py-4 sm:py-8">
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
-
-          {/* Painel de navios */}
-          <ShipSelector
-            ships={SHIPS}
-            selectedShip={selectedShip}
-            placedTypes={placed.map(p => p.type)}
-            onSelectShip={handleSelectShip}
-          />
-
-          {/* Grid + controles */}
-          <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-4 sm:p-8 flex flex-col items-center">
-            <h2 className="text-[#e8d5b0] text-base sm:text-lg font-medium tracking-wide mb-2 font-[MedievalSharp]">Posicione seus navios</h2>
-
-            {selectedShip && (
-              <p className="text-[#c4983c]/80 text-sm mb-4">
-                {getSelectedShipData()?.name} — {getSelectedShipData()?.size} células
-              </p>
-            )}
-
-            {!selectedShip && !allPlaced && (
-              <p className="text-[#5a5048] text-sm mb-4">Selecione um navio acima</p>
-            )}
-
-            {/* Controles */}
-            <div className="mb-4 flex gap-3 flex-wrap justify-center">
-              <button
-                onClick={() => setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL')}
-                className="px-4 py-2 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-medium tracking-wider hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors"
-              >
-                Rotacionar
-              </button>
-              <span className="text-[#5a5048] text-xs self-center hidden sm:inline">ou botão direito</span>
-            </div>
-
-            {/* Grid */}
-            <div
-              className="mb-6"
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (selectedShip) {
-                  setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL');
-                }
-              }}
+        {/* Header */}
+        <header className="w-full px-4 sm:px-8 py-4 flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <PirateButton
+              onClick={() => { setLeaving(true); leaveGame(gameId); resetGame(); navigate('/lobby'); }}
+              variant="wood"
+              size="sm"
             >
-              <BoardGrid
-                cellSize={cellSize}
-                onCellClick={handleClick}
-                onCellHover={handleHover}
-                onMouseLeave={() => { setHoverCells([]); setHoverPos(null); }}
-                getCellClass={(row, col) =>
-                  hoverCells.some(c => c.row === row && c.col === col) ? 'bg-[#c4983c]/25' : ''
-                }
-                backgroundChildren={
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-                    <img src="/fish/left/fish4.png" alt="" className="absolute top-[15%] h-9 opacity-[0.14] animate-[swim-left_16s_linear_infinite]" />
-                    <img src="/fish/right/fish2.png" alt="" className="absolute top-[38%] h-6 opacity-[0.17] animate-[swim-right_19s_linear_infinite] [animation-delay:4s]" />
-                    <img src="/fish/left/fish3.png" alt="" className="absolute top-[55%] h-7 opacity-[0.15] animate-[swim-left_14s_linear_infinite] [animation-delay:8s]" />
-                    <img src="/fish/right/fish1.png" alt="" className="absolute top-[72%] h-10 opacity-[0.12] animate-[swim-right_23s_linear_infinite] [animation-delay:12s]" />
-                    <img src="/fish/left/fish2.png" alt="" className="absolute top-[90%] h-5 opacity-[0.16] animate-[swim-left_26s_linear_infinite] [animation-delay:17s]" />
-                  </div>
-                }
-              >
-                {/* Imagens dos navios posicionados */}
-                {placed.map((ship) => (
-                  <img
-                    key={ship.type}
-                    src={ship.img}
-                    alt={ship.type}
-                    className={`absolute pointer-events-none object-contain transition-opacity z-[2] ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
-                    style={getShipStyle(ship)}
-                  />
-                ))}
-              </BoardGrid>
-            </div>
+              ← Lobby
+            </PirateButton>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleMute}
+              className="text-[#8B7355] hover:text-[#D5AE47] transition-colors text-xl p-1"
+              title={muted ? 'Ativar som' : 'Silenciar'}
+            >
+              {muted ? <HiVolumeOff /> : <HiVolumeUp />}
+            </button>
+            <span className="text-[#C6AE78] text-sm font-['Cinzel',_serif]">{username}</span>
+          </div>
+        </header>
 
-            {/* Botão PRONTO */}
-            {allPlaced && !sending && (
-              <button
-                onClick={handleReady}
-                className="w-full max-w-xs py-3.5 rounded-md bg-[#8b6914] text-[#211a14] text-sm font-bold tracking-wider uppercase hover:bg-[#c4983c] transition-colors font-[MedievalSharp]"
-              >
-                Pronto
-              </button>
-            )}
+        {/* Conteúdo */}
+        <div className="flex-1 flex items-center justify-center px-2 sm:px-4 py-4 sm:py-6">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start">
 
-            {sending && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
-                <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 flex flex-col items-center gap-6 max-w-sm mx-4 shadow-2xl">
-                  <WaitingScreen
-                    description="Seus navios estão posicionados"
-                  />
-                  <button
-                    onClick={() => setSending(false)}
-                    className="px-6 py-2.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-xs font-bold tracking-wider uppercase hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors font-[MedievalSharp]"
-                  >
-                    ← Reposicionar navios
-                  </button>
-                </div>
+            {/* Painel de navios */}
+            <ShipSelector
+              ships={SHIPS}
+              selectedShip={selectedShip}
+              placedTypes={placed.map(p => p.type)}
+              onSelectShip={handleSelectShip}
+            />
+
+            {/* Grid + controles */}
+            <UIPanel variant="default" size="md" className="flex flex-col items-center">
+              <h2 className="text-[#F4E2B6] text-base sm:text-lg font-bold tracking-wider mb-2 font-['Cinzel',_serif] text-shadow-warm">
+                Posicione seus navios
+              </h2>
+
+              {selectedShip && (
+                <p className="text-[#D5AE47] text-sm mb-4 font-['Cinzel',_serif]">
+                  {getSelectedShipData()?.name} — {getSelectedShipData()?.size} células
+                </p>
+              )}
+
+              {!selectedShip && !allPlaced && (
+                <p className="text-[#8B7355] text-sm mb-4">Selecione um navio</p>
+              )}
+
+              {/* Controles */}
+              <div className="mb-4 flex gap-3 flex-wrap justify-center">
+                <PirateButton
+                  onClick={() => setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL')}
+                  variant="wood"
+                  size="sm"
+                >
+                  Rotacionar
+                </PirateButton>
+                <span className="text-[#8B7355] text-xs self-center hidden sm:inline">ou botão direito</span>
               </div>
-            )}
+
+              {/* Grid */}
+              <div
+                className="mb-6"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (selectedShip) {
+                    setOrientation(o => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL');
+                  }
+                }}
+              >
+                <BoardGrid
+                  cellSize={cellSize}
+                  onCellClick={handleClick}
+                  onCellHover={handleHover}
+                  onMouseLeave={() => { setHoverCells([]); setHoverPos(null); }}
+                  getCellClass={(row, col) =>
+                    hoverCells.some(c => c.row === row && c.col === col) ? 'bg-[#B98B2F]/30' : ''
+                  }
+                  backgroundChildren={
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                      <img src="/fish/left/fish4.png" alt="" className="absolute top-[15%] h-9 opacity-[0.14] animate-[swim-left_16s_linear_infinite]" />
+                      <img src="/fish/right/fish2.png" alt="" className="absolute top-[38%] h-6 opacity-[0.17] animate-[swim-right_19s_linear_infinite] [animation-delay:4s]" />
+                      <img src="/fish/left/fish3.png" alt="" className="absolute top-[55%] h-7 opacity-[0.15] animate-[swim-left_14s_linear_infinite] [animation-delay:8s]" />
+                      <img src="/fish/right/fish1.png" alt="" className="absolute top-[72%] h-10 opacity-[0.12] animate-[swim-right_23s_linear_infinite] [animation-delay:12s]" />
+                      <img src="/fish/left/fish2.png" alt="" className="absolute top-[90%] h-5 opacity-[0.16] animate-[swim-left_26s_linear_infinite] [animation-delay:17s]" />
+                    </div>
+                  }
+                >
+                  {placed.map((ship) => (
+                    <img
+                      key={ship.type}
+                      src={ship.img}
+                      alt={ship.type}
+                      className={`absolute pointer-events-none object-contain transition-opacity z-[2] ${selectedShip === ship.type ? 'opacity-40' : 'opacity-90'}`}
+                      style={getShipStyle(ship)}
+                    />
+                  ))}
+                </BoardGrid>
+              </div>
+
+              {/* Botão PRONTO */}
+              {allPlaced && !sending && (
+                <PirateButton onClick={handleReady} variant="gold" size="lg" fullWidth>
+                  Pronto para Batalha
+                </PirateButton>
+              )}
+
+              {sending && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/85 backdrop-blur-sm">
+                  <UIPanel variant="default" size="lg" className="max-w-sm mx-4 flex flex-col items-center gap-4">
+                    <WaitingScreen description="Seus navios estão posicionados" />
+                    <PirateButton
+                      onClick={() => setSending(false)}
+                      variant="wood"
+                      size="sm"
+                    >
+                      ← Reposicionar navios
+                    </PirateButton>
+                  </UIPanel>
+                </div>
+              )}
+            </UIPanel>
           </div>
         </div>
       </div>
-    </div>
+    </PirateBackground>
   );
 }

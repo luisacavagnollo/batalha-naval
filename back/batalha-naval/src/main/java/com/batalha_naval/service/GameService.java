@@ -55,8 +55,12 @@ public class GameService {
         if (game.getPlayer2Id() != null) {
             throw new IllegalStateException("Sala já está cheia");
         }
+        // Se o criador tenta entrar na própria sala, significa que ele cancelou
+        // mas o leave ainda não foi processado. Remover a sala e informar que não existe.
         if (playerId.equals(game.getPlayer1Id())) {
-            throw new IllegalStateException("Você já está nesta sala");
+            games.remove(code.toUpperCase());
+            codeToGameId.remove(code.toUpperCase());
+            throw new IllegalArgumentException("Sala não encontrada");
         }
         game.setPlayer2Id(playerId);
         game.setPlayer2Skin(getPlayerSkin(playerId));

@@ -8,6 +8,9 @@ import ConnectionStatus from '../components/ConnectionStatus';
 import WaitingScreen from '../components/WaitingScreen';
 import ProfileModal from '../components/ProfileModal';
 import ShopModal from '../components/ShopModal';
+import PirateBackground from '../components/PirateBackground';
+import UIPanel from '../components/UIPanel';
+import PirateButton from '../components/PirateButton';
 import { fetchProfile, fetchRanking } from '../services/api';
 
 export default function Lobby() {
@@ -24,6 +27,7 @@ export default function Lobby() {
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const navigate = useNavigate();
   const [searching, setSearching] = useState(false);
+  const [loadingSolo, setLoadingSolo] = useState(false);
 
   useEffect(() => {
     resetGame();
@@ -39,7 +43,6 @@ export default function Lobby() {
     });
   }, [resetGame, token]);
 
-  // Fechar dropdown ao clicar fora
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -59,6 +62,7 @@ export default function Lobby() {
   useEffect(() => {
     if (gameState?.gameId && gameState.phase !== 'FINISHED') {
       setSearching(false);
+      setLoadingSolo(false);
       navigate(`/place-ships/${gameState.gameId}`);
     }
   }, [gameState, navigate]);
@@ -70,7 +74,6 @@ export default function Lobby() {
     }
   }, [roomCode, subscribeToGame]);
 
-  // Resetar searching se a conexão cair (backend perde o estado da fila)
   useEffect(() => {
     if (connectionStatus === 'disconnected' || connectionStatus === 'reconnecting') {
       setSearching(false);
@@ -91,9 +94,11 @@ export default function Lobby() {
     play('click');
     try {
       await connect();
+      setLoadingSolo(true);
       startSinglePlayer();
     } catch (err) {
       console.error('Falha ao conectar:', err.message);
+      setLoadingSolo(false);
     }
   };
 
@@ -126,177 +131,229 @@ export default function Lobby() {
   };
 
   return (
-    <div className="min-h-screen bg-[#211a14] flex flex-col">
-      <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
-      <header className="w-full px-4 sm:px-8 py-5 border-b border-[#3d2a1a]/30 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#c4983c] tracking-tight uppercase font-['Eagle_Lake']">Batalha Naval</h1>
-        <div className="flex items-center gap-4">
-          {/* Moedas */}
-          <span className="text-[#c4983c] text-sm font-bold">🪙 {moedas}</span>
+    <PirateBackground>
+      <div className="min-h-screen flex flex-col">
+        <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
 
-          {/* Loja */}
-          <button
-            onClick={() => { play('click'); setShowShop(true); }}
-            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-xl"
-            title="Loja"
-          >
-            <FiShoppingCart />
-          </button>
+        {/* Header */}
+        <header className="w-full px-4 sm:px-8 py-4 flex items-center justify-between relative z-10">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#D5AE47] tracking-wider uppercase font-['Cinzel_Decorative',_'Eagle_Lake',_serif] text-shadow-gold">
+            Batalha Naval
+          </h1>
+          <div className="flex items-center gap-3">
+            {/* Moedas */}
+            <div className="flex items-center gap-1 px-2 py-1 rounded bg-[#2B1D14]/60 border border-[#7A5A28]/30">
+              <span className="text-sm">🪙</span>
+              <span className="text-[#D5AE47] text-sm font-bold font-['Cinzel',_serif]">{moedas}</span>
+            </div>
 
-          {/* Mute */}
-          <button
-            onClick={toggleMute}
-            className="text-[#5a5048] hover:text-[#c4983c] transition-colors text-xl"
-            title={muted ? 'Ativar som' : 'Silenciar'}
-          >
-            {muted ? <HiVolumeOff /> : <HiVolumeUp />}
-          </button>
-
-          {/* Username dropdown */}
-          <div className="relative" ref={dropdownRef}>
+            {/* Loja */}
             <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="text-[#5a5048] text-sm hover:text-[#c4983c] transition-colors flex items-center gap-1"
+              onClick={() => { play('click'); setShowShop(true); }}
+              className="text-[#8B7355] hover:text-[#D5AE47] transition-colors text-xl p-1"
+              title="Loja"
             >
-              {username}
-              <span className="text-xs">▼</span>
+              <FiShoppingCart />
             </button>
-            {showDropdown && (
-              <div className="absolute right-0 top-full mt-2 bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-md shadow-xl overflow-hidden min-w-[150px] z-50">
-                <button
-                  onClick={() => { setShowDropdown(false); setShowProfile(true); }}
-                  className="w-full px-4 py-2.5 text-left text-[#e8d5b0] text-sm hover:bg-[#c4983c]/10 hover:text-[#c4983c] transition-colors"
-                >
-                  Meu Perfil
-                </button>
-                <div className="h-px bg-[#3d2a1a]/40" />
-                <button
-                  onClick={handleLogout}
-                  className="w-full px-4 py-2.5 text-left text-[#c45a4a] text-sm hover:bg-[#8b1a1a]/10 transition-colors"
-                >
-                  Sair da conta
-                </button>
-              </div>
-            )}
+
+            {/* Mute */}
+            <button
+              onClick={toggleMute}
+              className="text-[#8B7355] hover:text-[#D5AE47] transition-colors text-xl p-1"
+              title={muted ? 'Ativar som' : 'Silenciar'}
+            >
+              {muted ? <HiVolumeOff /> : <HiVolumeUp />}
+            </button>
+
+            {/* Username dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="text-[#C6AE78] text-sm hover:text-[#D5AE47] transition-colors flex items-center gap-1 font-['Cinzel',_serif]"
+              >
+                {username}
+                <span className="text-xs">▼</span>
+              </button>
+              {showDropdown && (
+                <div className="absolute right-0 top-full mt-2 min-w-[160px] z-50 rounded-md bg-gradient-to-br from-[#4B2F1C] via-[#3A2518] to-[#2B1D14] border-[3px] border-[#2E2E2E] shadow-[0_8px_32px_rgba(0,0,0,0.6),0_4px_12px_rgba(0,0,0,0.4)]">
+                  <div className="py-1">
+                    <button
+                      onClick={() => { setShowDropdown(false); setShowProfile(true); }}
+                      className="w-full px-4 py-2.5 text-left text-[#F4E2B6] text-sm hover:bg-[#B98B2F]/10 hover:text-[#D5AE47] transition-colors font-['Cinzel',_serif]"
+                    >
+                      Meu Perfil
+                    </button>
+                    <div className="h-px bg-[#2E2E2E] mx-2" />
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2.5 text-left text-[#C84A3A] text-sm hover:bg-[#8B2A1E]/10 transition-colors font-['Cinzel',_serif]"
+                    >
+                      Sair da conta
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl flex flex-col lg:flex-row gap-6">
+        {/* Divisor de header */}
+        <div className="divider-ornate mx-8" />
 
-          {/* Ranking */}
-          <div className="w-full lg:w-72 flex flex-col gap-4">
-            <div className="bg-[#2a1f15] border border-[#3d2a1a]/40 rounded-lg p-5">
-              <h3 className="text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-4 font-[MedievalSharp]">Ranking</h3>
-              {ranking.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  {ranking.map((player, i) => (
-                    <div key={i} className={`flex items-center justify-between py-2 px-3 rounded-md ${player.username === username ? 'bg-[#c4983c]/10 border border-[#c4983c]/30' : 'border-b border-[#3d2a1a]/20 last:border-0'}`}>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold w-5 ${i < 3 ? 'text-[#c4983c]' : 'text-[#5a5048]'}`}>
-                          {i + 1}º
-                        </span>
-                        <span className={`text-sm ${player.username === username ? 'text-[#c4983c] font-bold' : 'text-[#e8d5b0]'}`}>
-                          {player.username}
+        {/* Conteúdo principal */}
+        <div className="flex-1 flex items-center justify-center px-4 py-6">
+          <div className="w-full max-w-3xl flex flex-col lg:flex-row gap-6">
+
+            {/* Ranking */}
+            <div className="w-full lg:w-72">
+              <UIPanel variant="dark" size="md">
+                <h3 className="text-[#D5AE47] text-xs font-bold tracking-[0.2em] uppercase mb-4 font-['Cinzel',_serif] text-shadow-gold">
+                  Ranking
+                </h3>
+                {ranking.length > 0 ? (
+                  <div className="flex flex-col gap-1.5">
+                    {ranking.map((player, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-center justify-between py-2 px-3 rounded ${
+                          player.username === username
+                            ? 'bg-[#B98B2F]/10 border border-[#B98B2F]/30'
+                            : 'border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold w-5 font-['Cinzel',_serif] ${
+                            i === 0 ? 'text-[#D5AE47]' :
+                            i === 1 ? 'text-[#C0C0C0]' :
+                            i === 2 ? 'text-[#CD7F32]' :
+                            'text-[#8B7355]'
+                          }`}>
+                            {i + 1}º
+                          </span>
+                          <span className={`text-sm ${
+                            player.username === username
+                              ? 'text-[#D5AE47] font-bold'
+                              : 'text-[#F4E2B6]'
+                          }`}>
+                            {player.username}
+                          </span>
+                        </div>
+                        <span className="text-[#D5AE47] text-sm font-bold font-['Cinzel',_serif]">
+                          {player.wins}W
                         </span>
                       </div>
-                      <span className="text-[#c4983c] text-sm font-bold">{player.wins}W</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[#5a5048] text-sm">Nenhuma partida multiplayer ainda</p>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[#8B7355] text-sm">Nenhuma partida multiplayer ainda</p>
+                )}
+              </UIPanel>
             </div>
-          </div>
 
-          {/* Ações */}
-          <div className="flex-1 flex items-center">
-            <div className="w-full">
-              {roomCode && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
-                  <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 flex flex-col items-center gap-6 max-w-sm mx-4 shadow-2xl">
-                    <WaitingScreen
-                      title="Código da sala"
-                      subtitle={roomCode}
-                      description="Compartilhe este código com seu oponente"
-                      onCancel={() => { leaveGame(roomCode); resetGame(); }}
-                    />
-                  </div>
-                </div>
-              )}
-              {searching && !roomCode && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/80 backdrop-blur-sm">
-                  <div className="bg-[#2a1f15] border border-[#3d2a1a]/60 rounded-lg p-8 flex flex-col items-center gap-6 max-w-sm mx-4 shadow-2xl">
-                    <WaitingScreen
-                      title="Partida Aleatória"
-                      description="Procurando um oponente digno..."
-                      onCancel={handleCancelMatchmaking}
-                    />
-                  </div>
-                </div>
-              )}
-              {!roomCode && (
-                <div className="flex flex-col gap-4">
-                  <button
-                    onClick={handleCreate}
-                    className="w-full py-3.5 rounded-md bg-[#8b6914] text-[#211a14] text-sm font-bold tracking-wider uppercase hover:bg-[#c4983c] transition-colors font-[MedievalSharp]"
-                  >
-                    Criar sala
-                  </button>
-
-                  <button
-                    onClick={handleSinglePlayer}
-                    className="w-full py-3.5 rounded-md border border-[#3d2a1a]/60 text-[#c4b28a] text-sm font-bold tracking-wider uppercase hover:border-[#c4983c]/60 hover:text-[#c4983c] transition-colors font-[MedievalSharp]"
-                  >
-                    Jogar solo
-                  </button>
-
-                  <button
-                    onClick={handleMatchmaking}
-                    className="w-full py-3.5 rounded-md bg-[#0f2640] border border-[#1a3a5c]/60 text-[#e8d5b0] text-sm font-bold tracking-wider uppercase hover:bg-[#1a3a5c] hover:border-[#c4983c]/40 transition-colors font-[MedievalSharp]"
-                  >
-                    Partida Aleatória
-                  </button>
-
-                  <div className="flex items-center gap-4 my-2">
-                    <div className="flex-1 h-px bg-[#3d2a1a]/40"></div>
-                    <span className="text-[#5a5048] text-xs tracking-wider">ou</span>
-                    <div className="flex-1 h-px bg-[#3d2a1a]/40"></div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[#c4b28a] text-xs font-medium tracking-wider uppercase mb-2 font-[MedievalSharp]">Entrar em sala existente</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={code}
-                        onChange={e => setCode(e.target.value.toUpperCase())}
-                        placeholder="ABCD"
-                        maxLength={4}
-                        className="flex-1 bg-[#211a14] rounded-md px-4 py-3 border border-[#3d2a1a]/60 focus:border-[#c4983c]/70 focus:ring-1 focus:ring-[#c4983c]/30 focus:outline-none text-[#e8d5b0] text-center font-mono text-lg tracking-widest uppercase placeholder-[#5a5048] transition-colors"
+            {/* Ações */}
+            <div className="flex-1 flex items-center">
+              <div className="w-full">
+                {/* Modal de espera: Sala criada */}
+                {roomCode && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/90 backdrop-blur-sm">
+                    <UIPanel variant="default" size="lg" className="max-w-sm mx-4">
+                      <WaitingScreen
+                        title="Código da sala"
+                        subtitle={roomCode}
+                        description="Compartilhe este código com seu oponente"
+                        onCancel={() => { leaveGame(roomCode); resetGame(); }}
                       />
-                      <button
-                        onClick={handleJoin}
-                        className="px-5 py-3 rounded-md bg-[#8b6914] text-[#211a14] text-sm font-bold tracking-wider uppercase hover:bg-[#c4983c] transition-colors"
-                      >
-                        Entrar
-                      </button>
-                    </div>
+                    </UIPanel>
                   </div>
+                )}
 
-                  {error && <p className="text-[#c45a4a] text-sm mt-2">{error}</p>}
-                </div>
-              )}
+                {/* Modal de espera: Matchmaking */}
+                {searching && !roomCode && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/90 backdrop-blur-sm">
+                    <UIPanel variant="default" size="lg" className="max-w-sm mx-4">
+                      <WaitingScreen
+                        title="Buscar Oponente"
+                        description="Procurando um oponente digno..."
+                        onCancel={handleCancelMatchmaking}
+                      />
+                    </UIPanel>
+                  </div>
+                )}
+
+                {/* Modal de espera: Solo */}
+                {loadingSolo && !roomCode && !searching && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/90 backdrop-blur-sm">
+                    <UIPanel variant="default" size="lg" className="max-w-sm mx-4">
+                      <WaitingScreen
+                        description="Preparando a batalha..."
+                      />
+                    </UIPanel>
+                  </div>
+                )}
+
+                {!roomCode && (
+                  <UIPanel variant="default" size="lg">
+                    <h2 className="text-[#D5AE47] text-lg font-bold tracking-wider uppercase mb-6 font-['Cinzel',_serif] text-center text-shadow-gold">
+                      Zarpar para Batalha
+                    </h2>
+
+                    <div className="flex flex-col gap-3">
+                      <PirateButton onClick={handleCreate} variant="gold" size="lg" fullWidth>
+                        Criar sala
+                      </PirateButton>
+
+                      <PirateButton onClick={handleSinglePlayer} variant="wood" size="md" fullWidth>
+                        Contra o Capitão (Bot)
+                      </PirateButton>
+
+                      <PirateButton onClick={handleMatchmaking} variant="ocean" size="md" fullWidth>
+                        Buscar Oponente
+                      </PirateButton>
+
+                      {/* Separador */}
+                      <div className="flex items-center gap-3 my-2">
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#7A5A28]/50 to-transparent" />
+                        <span className="text-[#8B7355] text-xs tracking-widest uppercase font-['Cinzel',_serif]">ou</span>
+                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#7A5A28]/50 to-transparent" />
+                      </div>
+
+                      {/* Entrar em sala */}
+                      <div>
+                        <label className="block text-[#C6AE78] text-xs font-bold tracking-wider uppercase mb-2 font-['Cinzel',_serif]">
+                          Entrar em sala existente
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={code}
+                            onChange={e => setCode(e.target.value.toUpperCase())}
+                            placeholder="ABCD"
+                            maxLength={4}
+                            className="input-parchment flex-1 px-4 py-3 text-center font-mono text-lg tracking-widest uppercase"
+                          />
+                          <PirateButton onClick={handleJoin} variant="gold" size="md">
+                            Entrar
+                          </PirateButton>
+                        </div>
+                      </div>
+
+                      {error && (
+                        <div className="mt-2 px-3 py-2 rounded bg-[#8B2A1E]/20 border border-[#C84A3A]/40">
+                          <p className="text-[#C84A3A] text-sm text-center">{error}</p>
+                        </div>
+                      )}
+                    </div>
+                  </UIPanel>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Modals */}
-      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
-      {showShop && <ShopModal onClose={() => setShowShop(false)} onBalanceChange={(m) => setMoedas(m)} />}
-    </div>
+        {/* Modals */}
+        {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
+        {showShop && <ShopModal onClose={() => setShowShop(false)} onBalanceChange={(m) => setMoedas(m)} />}
+      </div>
+    </PirateBackground>
   );
 }

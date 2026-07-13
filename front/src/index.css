@@ -1,5 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Eagle+Lake&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Eagle+Lake&family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700;900&display=swap');
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════
+   TEMA PIRATA AAA - Batalha Naval
+   Inspirado em Sea of Thieves, Sid Meier's Pirates, LoR Bilgewater
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Background ─── */
+  --bg-deep: #1A0F09;
+  --bg-primary: #2B1D14;
+  --bg-secondary: #3A2518;
+
+  /* ─── Madeira ─── */
+  --wood-dark: #4B2F1C;
+  --wood-medium: #5B3921;
+  --wood-light: #6B4423;
+  --wood-grain: #3D2815;
+
+  /* ─── Metais ─── */
+  --bronze: #7A5A28;
+  --bronze-light: #8D6B32;
+  --gold: #B98B2F;
+  --gold-light: #D5AE47;
+  --gold-bright: #F0C95C;
+  --iron: #4A4A4A;
+  --iron-dark: #2E2E2E;
+  --iron-rust: #6B3D2A;
+
+  /* ─── Oceano ─── */
+  --ocean-dark: #173A59;
+  --ocean-medium: #1E4D74;
+  --ocean-light: #2A6B9E;
+
+  /* ─── Texto ─── */
+  --text-primary: #F4E2B6;
+  --text-secondary: #C6AE78;
+  --text-muted: #8B7355;
+  --text-dark: #2B1D14;
+
+  /* ─── Feedback ─── */
+  --error: #C84A3A;
+  --error-dark: #8B2A1E;
+  --success: #4D9F59;
+  --success-dark: #2E6B38;
+
+  /* ─── Efeitos ─── */
+  --lamp-glow: rgba(212, 170, 80, 0.15);
+  --lamp-glow-strong: rgba(212, 170, 80, 0.35);
+  --shadow-warm: rgba(20, 10, 5, 0.8);
+  --shadow-medium: rgba(20, 10, 5, 0.5);
+
+  /* ─── Tamanhos ─── */
+  --rivet-size: 12px;
+  --border-iron: 3px;
+  --panel-radius: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════════════════════ */
 
 @keyframes swim-right {
   from { left: -10%; }
@@ -22,26 +82,545 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Reset de cores do scrollbar para combinar com o tema */
+@keyframes lamp-flicker {
+  0%, 100% { opacity: 1; }
+  5% { opacity: 0.92; }
+  10% { opacity: 1; }
+  50% { opacity: 0.97; }
+  55% { opacity: 0.94; }
+  60% { opacity: 1; }
+}
+
+@keyframes gold-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes rope-sway {
+  0%, 100% { transform: rotate(-0.5deg); }
+  50% { transform: rotate(0.5deg); }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(185, 139, 47, 0.3), inset 0 0 5px rgba(185, 139, 47, 0.1); }
+  50% { box-shadow: 0 0 20px rgba(185, 139, 47, 0.5), inset 0 0 10px rgba(185, 139, 47, 0.2); }
+}
+
+@keyframes chain-rattle {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(1px); }
+  75% { transform: translateX(-1px); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TEXTURAS BASE (SVG inline para performance)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Textura de grão de madeira */
+.texture-wood {
+  background-image:
+    repeating-linear-gradient(
+      95deg,
+      transparent,
+      transparent 20px,
+      rgba(0,0,0,0.03) 20px,
+      rgba(0,0,0,0.03) 21px
+    ),
+    repeating-linear-gradient(
+      87deg,
+      transparent,
+      transparent 40px,
+      rgba(60,30,10,0.06) 40px,
+      rgba(60,30,10,0.06) 42px
+    ),
+    repeating-linear-gradient(
+      92deg,
+      transparent,
+      transparent 15px,
+      rgba(0,0,0,0.02) 15px,
+      rgba(0,0,0,0.02) 16px
+    );
+}
+
+/* Textura de madeira forte (para painéis) */
+.texture-wood-strong {
+  background-image:
+    repeating-linear-gradient(
+      93deg,
+      transparent,
+      transparent 8px,
+      rgba(0,0,0,0.05) 8px,
+      rgba(0,0,0,0.05) 9px
+    ),
+    repeating-linear-gradient(
+      88deg,
+      transparent,
+      transparent 25px,
+      rgba(40,20,5,0.08) 25px,
+      rgba(40,20,5,0.08) 28px
+    ),
+    repeating-linear-gradient(
+      91deg,
+      transparent,
+      transparent 60px,
+      rgba(80,40,15,0.04) 60px,
+      rgba(80,40,15,0.04) 63px
+    );
+}
+
+/* Textura de mapa antigo */
+.texture-map {
+  background-image:
+    radial-gradient(ellipse at 20% 30%, rgba(185, 139, 47, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 60%, rgba(185, 139, 47, 0.03) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 80%, rgba(122, 90, 40, 0.03) 0%, transparent 45%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 100px,
+      rgba(185, 139, 47, 0.015) 100px,
+      rgba(185, 139, 47, 0.015) 101px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 100px,
+      rgba(185, 139, 47, 0.015) 100px,
+      rgba(185, 139, 47, 0.015) 101px
+    );
+}
+
+/* Textura de pergaminho */
+.texture-parchment {
+  background-color: #3A2A1A;
+  background-image:
+    radial-gradient(ellipse at 30% 20%, rgba(244, 226, 182, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(198, 174, 120, 0.04) 0%, transparent 40%),
+    repeating-linear-gradient(
+      175deg,
+      transparent,
+      transparent 3px,
+      rgba(0,0,0,0.015) 3px,
+      rgba(0,0,0,0.015) 4px
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENTES UTILITÁRIOS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Rebite metálico */
+.rivet {
+  width: var(--rivet-size);
+  height: var(--rivet-size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #8D6B32, #5A4020 60%, #3D2815);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.2),
+    inset 0 -1px 2px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.5);
+  position: absolute;
+  z-index: 10;
+}
+
+.rivet::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  width: 4px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 220, 150, 0.3);
+}
+
+/* Variante de rebite - ferro */
+.rivet-iron {
+  width: var(--rivet-size);
+  height: var(--rivet-size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #6B6B6B, #3A3A3A 60%, #1E1E1E);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.15),
+    inset 0 -1px 2px rgba(0,0,0,0.5),
+    0 2px 4px rgba(0,0,0,0.6);
+  position: absolute;
+  z-index: 10;
+}
+
+/* Corda lateral */
+.rope-left,
+.rope-right {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  z-index: 1;
+  pointer-events: none;
+  animation: rope-sway 8s ease-in-out infinite;
+}
+
+.rope-left {
+  left: 10px;
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      #5B3921 0px,
+      #4B2F1C 3px,
+      #6B4423 6px,
+      #5B3921 9px,
+      #3D2815 12px
+    );
+  mask-image: linear-gradient(180deg, transparent 0%, black 5%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 5%, black 95%, transparent 100%);
+  border-radius: 10px;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.3);
+  opacity: 0.6;
+}
+
+.rope-right {
+  right: 10px;
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      #4B2F1C 0px,
+      #5B3921 3px,
+      #3D2815 6px,
+      #6B4423 9px,
+      #4B2F1C 12px
+    );
+  mask-image: linear-gradient(180deg, transparent 0%, black 5%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 5%, black 95%, transparent 100%);
+  border-radius: 10px;
+  box-shadow: -2px 0 6px rgba(0,0,0,0.3);
+  animation-delay: -4s;
+  opacity: 0.6;
+}
+
+/* Iluminação de lampião */
+.lamp-glow {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  animation: lamp-flicker 4s ease-in-out infinite;
+}
+
+.lamp-glow-tl {
+  top: -100px;
+  left: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, var(--lamp-glow) 0%, transparent 70%);
+}
+
+.lamp-glow-br {
+  bottom: -100px;
+  right: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, var(--lamp-glow) 0%, transparent 70%);
+  animation-delay: -2s;
+}
+
+.lamp-glow-center {
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(ellipse, rgba(212, 170, 80, 0.06) 0%, transparent 70%);
+  animation-delay: -1s;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAINÉIS DE MADEIRA (classes utilitárias)
+   ═══════════════════════════════════════════════════════════════ */
+
+.panel-wood {
+  background: linear-gradient(165deg, var(--wood-medium) 0%, var(--wood-dark) 50%, var(--wood-grain) 100%);
+  border: var(--border-iron) solid var(--iron-dark);
+  border-radius: var(--panel-radius);
+  box-shadow:
+    /* Sombra externa profunda */
+    0 8px 32px rgba(0,0,0,0.6),
+    0 4px 12px rgba(0,0,0,0.4),
+    /* Borda interna luminosa (relevo) */
+    inset 0 1px 0 rgba(107, 68, 35, 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    inset 1px 0 0 rgba(107, 68, 35, 0.3),
+    inset -1px 0 0 rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.panel-wood::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      93deg,
+      transparent,
+      transparent 12px,
+      rgba(0,0,0,0.04) 12px,
+      rgba(0,0,0,0.04) 13px
+    ),
+    repeating-linear-gradient(
+      88deg,
+      transparent,
+      transparent 30px,
+      rgba(40,20,5,0.06) 30px,
+      rgba(40,20,5,0.06) 33px
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BOTÕES
+   ═══════════════════════════════════════════════════════════════ */
+
+.btn-gold {
+  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 40%, var(--bronze) 100%);
+  border: 2px solid var(--bronze);
+  border-radius: 4px;
+  color: var(--text-dark);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255, 220, 100, 0.4),
+    inset 0 -2px 4px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-gold::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn-gold:hover {
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold-light) 40%, var(--gold) 100%);
+  box-shadow:
+    0 4px 16px rgba(185, 139, 47, 0.4),
+    0 2px 8px rgba(185, 139, 47, 0.3),
+    inset 0 1px 0 rgba(255, 220, 100, 0.6),
+    inset 0 -2px 4px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+
+.btn-gold:hover::before {
+  opacity: 1;
+  animation: gold-shimmer 1.5s linear infinite;
+}
+
+.btn-gold:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.4),
+    inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.btn-wood {
+  background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood-medium) 40%, var(--wood-dark) 100%);
+  border: 2px solid var(--iron-dark);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(107, 68, 35, 0.5),
+    inset 0 -2px 4px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.btn-wood::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      92deg,
+      transparent,
+      transparent 10px,
+      rgba(0,0,0,0.03) 10px,
+      rgba(0,0,0,0.03) 11px
+    );
+  pointer-events: none;
+}
+
+.btn-wood:hover {
+  background: linear-gradient(180deg, #7A5530 0%, var(--wood-light) 40%, var(--wood-medium) 100%);
+  border-color: var(--bronze);
+  box-shadow:
+    0 4px 16px rgba(185, 139, 47, 0.2),
+    0 2px 8px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(185, 139, 47, 0.3),
+    inset 0 -2px 4px rgba(0,0,0,0.2);
+  transform: translateY(-1px);
+}
+
+.btn-wood:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.4),
+    inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.btn-danger {
+  background: linear-gradient(180deg, #A03830 0%, var(--error) 40%, var(--error-dark) 100%);
+  border: 2px solid var(--error-dark);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,100,80,0.3),
+    inset 0 -2px 4px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(180deg, #C04A40 0%, #A03830 40%, var(--error) 100%);
+  box-shadow:
+    0 4px 16px rgba(200, 74, 58, 0.3),
+    inset 0 1px 0 rgba(255,100,80,0.4);
+  transform: translateY(-1px);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INPUTS
+   ═══════════════════════════════════════════════════════════════ */
+
+.input-parchment {
+  background: linear-gradient(165deg, #3D2A1A 0%, #2F2015 100%);
+  border: 2px solid var(--iron-dark);
+  border-radius: 4px;
+  color: var(--text-primary);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.4),
+    inset 0 1px 2px rgba(0,0,0,0.3),
+    0 1px 0 rgba(107, 68, 35, 0.3);
+  transition: all 0.2s ease;
+}
+
+.input-parchment::placeholder {
+  color: var(--text-muted);
+}
+
+.input-parchment:focus {
+  border-color: var(--bronze);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.3),
+    0 0 0 2px rgba(185, 139, 47, 0.2),
+    0 1px 0 rgba(107, 68, 35, 0.3);
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════════ */
+
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #211a14;
+  background: var(--bg-deep);
+  border-left: 1px solid var(--iron-dark);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3d2a1a;
-  border-radius: 3px;
+  background: linear-gradient(180deg, var(--wood-medium), var(--wood-dark));
+  border-radius: 4px;
+  border: 1px solid var(--iron-dark);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5a5048;
+  background: linear-gradient(180deg, var(--wood-light), var(--wood-medium));
 }
 
-/* Seleção de texto com tom ouro */
+/* Seleção de texto */
 ::selection {
-  background: rgba(196, 152, 60, 0.3);
-  color: #e8d5b0;
+  background: rgba(185, 139, 47, 0.35);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FONTES TEMÁTICAS
+   ═══════════════════════════════════════════════════════════════ */
+
+.font-pirate {
+  font-family: 'Cinzel Decorative', 'Eagle Lake', 'MedievalSharp', serif;
+}
+
+.font-medieval {
+  font-family: 'Cinzel', 'MedievalSharp', serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DIVIDER (separador ornamentado)
+   ═══════════════════════════════════════════════════════════════ */
+
+.divider-ornate {
+  height: 3px;
+  background:
+    linear-gradient(90deg, transparent, var(--bronze) 20%, var(--gold) 50%, var(--bronze) 80%, transparent);
+  border: none;
+  position: relative;
+  opacity: 0.6;
+}
+
+.divider-ornate::before,
+.divider-ornate::after {
+  content: '◆';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gold);
+  font-size: 8px;
+}
+
+.divider-ornate::before { left: 15%; }
+.divider-ornate::after { right: 15%; }
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILITÁRIOS EXTRAS
+   ═══════════════════════════════════════════════════════════════ */
+
+.text-shadow-warm {
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 0 20px rgba(185, 139, 47, 0.1);
+}
+
+.text-shadow-gold {
+  text-shadow: 0 0 10px rgba(185, 139, 47, 0.3), 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.glow-gold {
+  box-shadow: 0 0 15px rgba(185, 139, 47, 0.3), 0 0 30px rgba(185, 139, 47, 0.1);
+}
+
+/* Efeito de vinheta no background */
+.vignette {
+  box-shadow: inset 0 0 150px 50px rgba(0,0,0,0.5);
 }
