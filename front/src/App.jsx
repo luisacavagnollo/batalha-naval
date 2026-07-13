@@ -29,8 +29,8 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   return (
-    <GameProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <GameProvider>
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/lobby" element={<PrivateRoute><Lobby /></PrivateRoute>} />
@@ -38,7 +38,7 @@ export default function App() {
           <Route path="/game/:gameId" element={<PrivateRoute><Game /></PrivateRoute>} />
           <Route path="/game-over" element={<PrivateRoute><GameOver /></PrivateRoute>} />
         </Routes>
-      </BrowserRouter>
-    </GameProvider>
+      </GameProvider>
+    </BrowserRouter>
   );
 }

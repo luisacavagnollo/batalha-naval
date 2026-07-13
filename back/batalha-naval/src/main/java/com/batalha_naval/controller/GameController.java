@@ -11,6 +11,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Controller;
 
+import javax.annotation.PreDestroy;
 import java.security.Principal;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +40,11 @@ public class GameController {
         this.botService = botService;
         this.messaging = messaging;
         this.matchmakingService = matchmakingService;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        scheduler.shutdownNow();
     }
 
     @MessageMapping("/game/matchmaking/join")
