@@ -93,7 +93,7 @@ export default function PlaceShips() {
   const username = localStorage.getItem('username');
   const navigate = useNavigate();
   const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, leaveGame, connectionStatus, reconnectInfo } = useGame(token);
-  const { play, toggleMute, muted } = useSound();
+  const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const cellSize = useResponsiveCellSize();
 
   const [orientation, setOrientation] = useState('HORIZONTAL');
@@ -111,6 +111,12 @@ export default function PlaceShips() {
   useEffect(() => {
     connect().then(() => subscribeToGame(gameId));
   }, [connect, subscribeToGame, gameId]);
+
+  // Manter música do lobby na tela de posicionamento
+  useEffect(() => {
+    startMusic('/sounds/lobby.mp3');
+    return () => stopMusic();
+  }, [startMusic, stopMusic]);
 
   useEffect(() => {
     if (leaving) return;

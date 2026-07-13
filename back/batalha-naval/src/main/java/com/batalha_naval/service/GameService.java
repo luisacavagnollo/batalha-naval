@@ -8,6 +8,8 @@ import com.batalha_naval.model.User;
 import com.batalha_naval.repository.GameRecordRepository;
 import com.batalha_naval.repository.PlayerStatsRepository;
 import com.batalha_naval.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class GameService {
+
+    private static final Logger log = LoggerFactory.getLogger(GameService.class);
 
     private final ConcurrentHashMap<String, Game> games = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> codeToGameId = new ConcurrentHashMap<>();
@@ -103,6 +107,8 @@ public class GameService {
         String p2 = game.getPlayer2Id();
         long now = System.currentTimeMillis();
         boolean isSinglePlayer = "BOT".equals(p2);
+
+        log.info("Persistindo resultado: p1={}, p2={}, winner={}, singlePlayer={}", p1, p2, winner, isSinglePlayer);
 
         // Salvar registro da partida
         GameRecord record = new GameRecord(p1, p2 != null ? p2 : "BOT", winner, now, isSinglePlayer);

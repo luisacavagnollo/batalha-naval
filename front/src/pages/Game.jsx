@@ -480,7 +480,7 @@ export default function Game() {
 
   useEffect(() => {
     connect().then(() => subscribeToGame(gameId));
-    startMusic();
+    startMusic('/sounds/battle.mp3', 0.55);
     return () => { stopMusic(); if (gameOverTimerRef.current) clearTimeout(gameOverTimerRef.current); };
   }, [connect, subscribeToGame, gameId, startMusic, stopMusic]);
 

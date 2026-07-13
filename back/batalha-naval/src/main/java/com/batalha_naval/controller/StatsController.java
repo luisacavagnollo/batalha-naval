@@ -30,7 +30,13 @@ public class StatsController {
 
     @GetMapping("/ranking")
     public ResponseEntity<List<Map<String, Object>>> getRanking() {
-        List<Object[]> results = gameRecordRepository.findMultiplayerRanking();
+        List<Object[]> results;
+        try {
+            results = gameRecordRepository.findMultiplayerRankingNative();
+        } catch (Exception e) {
+            // Fallback para JPQL se nativa falhar
+            results = gameRecordRepository.findMultiplayerRanking();
+        }
         List<Map<String, Object>> ranking = results.stream()
                 .limit(10)
                 .map(row -> {

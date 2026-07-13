@@ -22,7 +22,7 @@ public class GameRecord {
     @Column(nullable = false)
     private long timestamp;
 
-    @Column(nullable = false)
+    @Column(name = "single_player", nullable = false)
     private boolean singlePlayer;
 
     public GameRecord() {

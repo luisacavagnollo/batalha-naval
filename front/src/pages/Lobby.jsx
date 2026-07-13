@@ -43,6 +43,12 @@ export default function Lobby() {
     });
   }, [resetGame, token]);
 
+  // Música de fundo do lobby
+  useEffect(() => {
+    startMusic('/sounds/lobby.mp3');
+    return () => stopMusic();
+  }, [startMusic, stopMusic]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {

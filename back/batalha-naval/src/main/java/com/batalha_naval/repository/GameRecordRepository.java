@@ -14,4 +14,7 @@ public interface GameRecordRepository extends JpaRepository<GameRecord, Long> {
 
     @Query("SELECT g.winner, COUNT(g) as wins FROM GameRecord g WHERE g.singlePlayer = false AND g.winner IS NOT NULL GROUP BY g.winner ORDER BY wins DESC")
     List<Object[]> findMultiplayerRanking();
+
+    @Query(value = "SELECT winner, COUNT(*) as wins FROM game_records WHERE single_player = false AND winner IS NOT NULL GROUP BY winner ORDER BY wins DESC LIMIT 10", nativeQuery = true)
+    List<Object[]> findMultiplayerRankingNative();
 }

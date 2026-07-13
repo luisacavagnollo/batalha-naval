@@ -40,7 +40,7 @@ function getAudioContext() {
 
 function updateMusicGain() {
   if (musicGainNode) {
-    musicGainNode.gain.value = currentMuted ? 0 : currentMusicVolume * 0.4;
+    musicGainNode.gain.value = currentMuted ? 0 : currentMusicVolume * 0.35;
   }
 }
 
@@ -231,20 +231,20 @@ async function playSound(soundName) {
   source.start(0);
 }
 
-function startMusicInternal() {
+function startMusicInternal(url = '/sounds/ambient.mp3', volumeMultiplier = 0.35) {
   if (musicSource) return; // Já tocando
 
   const ctx = getAudioContext();
 
   // Tentar carregar MP3
-  loadAudioBuffer('/sounds/ambient.mp3').then(buffer => {
+  loadAudioBuffer(url).then(buffer => {
     if (musicSource) return; // Outra chamada já iniciou
     if (buffer) {
       const source = ctx.createBufferSource();
       const gainNode = ctx.createGain();
       source.buffer = buffer;
       source.loop = true;
-      gainNode.gain.value = currentMuted ? 0 : currentMusicVolume;
+      gainNode.gain.value = currentMuted ? 0 : currentMusicVolume * volumeMultiplier;
       source.connect(gainNode);
       gainNode.connect(ctx.destination);
       source.start(0);
@@ -338,8 +338,8 @@ export function useSound() {
     playSound(soundName);
   }, []);
 
-  const startMusic = useCallback(() => {
-    startMusicInternal();
+  const startMusic = useCallback((url, volumeMultiplier) => {
+    startMusicInternal(url, volumeMultiplier);
   }, []);
 
   const stopMusic = useCallback(() => {
