@@ -11,7 +11,6 @@ import com.batalha_naval.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -90,7 +89,6 @@ public class GameService {
         return result;
     }
 
-    @Transactional
     public ShotOutcome shoot(String gameId, String playerId, int row, int col) {
         Game game = getGame(gameId);
         game.touchActivity();
@@ -111,38 +109,52 @@ public class GameService {
         log.info("Persistindo resultado: p1={}, p2={}, winner={}, singlePlayer={}", p1, p2, winner, isSinglePlayer);
 
         // Salvar registro da partida
-        GameRecord record = new GameRecord(p1, p2 != null ? p2 : "BOT", winner, now, isSinglePlayer);
-        gameRecordRepository.save(record);
-
-        // Atualizar stats dos jogadores (não salva stats para BOT)
-        if (p1 != null && !p1.equals("BOT")) {
-            PlayerStats stats1 = playerStatsRepository.findByUsername(p1)
-                    .orElse(new PlayerStats(p1));
-            if (p1.equals(winner)) {
-                stats1.incrementWins();
-            } else {
-                stats1.incrementLosses();
-            }
-            playerStatsRepository.save(stats1);
+        try {
+            GameRecord record = new GameRecord(p1, p2 != null ? p2 : "BOT", winner, now, isSinglePlayer);
+            gameRecordRepository.save(record);
+            gameRecordRepository.flush();
+            log.info("GameRecord salvo com sucesso: winner={}, singlePlayer={}", winner, isSinglePlayer);
+        } catch (Exception e) {
+            log.error("Erro ao salvar GameRecord: {}", e.getMessage(), e);
         }
 
-        if (p2 != null && !p2.equals("BOT")) {
-            PlayerStats stats2 = playerStatsRepository.findByUsername(p2)
-                    .orElse(new PlayerStats(p2));
-            if (p2.equals(winner)) {
-                stats2.incrementWins();
-            } else {
-                stats2.incrementLosses();
+        // Atualizar stats dos jogadores (não salva stats para BOT)
+        try {
+            if (p1 != null && !p1.equals("BOT")) {
+                PlayerStats stats1 = playerStatsRepository.findByUsername(p1)
+                        .orElse(new PlayerStats(p1));
+                if (p1.equals(winner)) {
+                    stats1.incrementWins();
+                } else {
+                    stats1.incrementLosses();
+                }
+                playerStatsRepository.save(stats1);
             }
-            playerStatsRepository.save(stats2);
+
+            if (p2 != null && !p2.equals("BOT")) {
+                PlayerStats stats2 = playerStatsRepository.findByUsername(p2)
+                        .orElse(new PlayerStats(p2));
+                if (p2.equals(winner)) {
+                    stats2.incrementWins();
+                } else {
+                    stats2.incrementLosses();
+                }
+                playerStatsRepository.save(stats2);
+            }
+        } catch (Exception e) {
+            log.error("Erro ao atualizar PlayerStats: {}", e.getMessage(), e);
         }
 
         // Adicionar 10 moedas ao vencedor
-        if (winner != null && !winner.equals("BOT")) {
-            userRepository.findByUsername(winner).ifPresent(user -> {
-                user.setMoedas(user.getMoedas() + 10);
-                userRepository.save(user);
-            });
+        try {
+            if (winner != null && !winner.equals("BOT")) {
+                userRepository.findByUsername(winner).ifPresent(user -> {
+                    user.setMoedas(user.getMoedas() + 10);
+                    userRepository.save(user);
+                });
+            }
+        } catch (Exception e) {
+            log.error("Erro ao creditar moedas: {}", e.getMessage(), e);
         }
     }
 
@@ -176,7 +188,6 @@ public class GameService {
                 .orElse(0);
     }
 
-    @Transactional
     public Game surrender(String gameId, String playerId) {
         Game game = getGame(gameId);
         if (game.getPhase() == GamePhase.FINISHED) {

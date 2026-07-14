@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/stats")
 public class StatsController {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(StatsController.class);
     private final GameService gameService;
     private final GameRecordRepository gameRecordRepository;
 
@@ -34,8 +35,13 @@ public class StatsController {
         try {
             results = gameRecordRepository.findMultiplayerRankingNative();
         } catch (Exception e) {
-            // Fallback para JPQL se nativa falhar
-            results = gameRecordRepository.findMultiplayerRanking();
+            log.warn("Query nativa de ranking falhou, tentando JPQL: {}", e.getMessage());
+            try {
+                results = gameRecordRepository.findMultiplayerRanking();
+            } catch (Exception e2) {
+                log.error("Query JPQL de ranking também falhou: {}", e2.getMessage(), e2);
+                return ResponseEntity.ok(List.of());
+            }
         }
         List<Map<String, Object>> ranking = results.stream()
                 .limit(10)
