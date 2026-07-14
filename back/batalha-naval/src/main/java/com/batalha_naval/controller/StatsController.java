@@ -30,6 +30,7 @@ public class StatsController {
     }
 
     @GetMapping("/ranking")
+    @CrossOrigin(origins = "*")
     public ResponseEntity<List<Map<String, Object>>> getRanking() {
         List<Object[]> results;
         try {

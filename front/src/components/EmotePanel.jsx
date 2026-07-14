@@ -37,13 +37,13 @@ export default function EmotePanel({ onSendEmote, receivedEmote }) {
       <div ref={panelRef} className="fixed bottom-4 right-4 z-40">
         {/* Popup de emotes */}
         {open && (
-          <div className="absolute bottom-14 right-0 bg-[#4B2F1C] border-2 border-[#2E2E2E] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.6)] p-3 animate-[float-gentle_0.2s_ease-out]">
-            <div className="grid grid-cols-3 gap-2">
+          <div className="absolute bottom-14 right-0 bg-[#4B2F1C] border-2 border-[#2E2E2E] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.6)] p-2">
+            <div className="flex flex-col gap-1">
               {EMOTES.map(e => (
                 <button
                   key={e}
                   onClick={() => handleSend(e)}
-                  className="text-2xl hover:scale-125 transition-transform active:scale-90 w-10 h-10 flex items-center justify-center rounded hover:bg-[#B98B2F]/15"
+                  className="text-2xl hover:scale-110 transition-transform active:scale-90 w-11 h-11 flex items-center justify-center rounded hover:bg-[#B98B2F]/15"
                 >
                   {e}
                 </button>
