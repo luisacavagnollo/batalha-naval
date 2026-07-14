@@ -42,7 +42,7 @@ export default function GameOver() {
   const showOpponentWants = !isBotGame && rematchRequested && !rematchPending;
 
   return (
-    <PirateBackground>
+    <PirateBackground variant="battle">
       <div className="min-h-screen flex flex-col">
         <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
 

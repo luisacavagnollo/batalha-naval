@@ -547,7 +547,7 @@ export default function Game() {
 
 
   return (
-    <PirateBackground>
+    <PirateBackground variant="battle">
       <div className="min-h-screen flex flex-col">
         <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
 

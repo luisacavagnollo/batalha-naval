@@ -40,7 +40,7 @@ public class SecurityConfig {
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeHttpRequests(auth -> auth
-                .antMatchers("/api/auth/**", "/ws/**", "/api/stats/ranking").permitAll()
+                .antMatchers("/api/auth/**", "/ws/**", "/api/stats/ranking", "/api/health").permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
