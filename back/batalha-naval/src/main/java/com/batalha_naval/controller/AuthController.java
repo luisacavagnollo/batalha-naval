@@ -2,7 +2,6 @@ package com.batalha_naval.controller;
 
 import com.batalha_naval.dto.AuthRequest;
 import com.batalha_naval.dto.AuthResponse;
-import com.batalha_naval.repository.GameRecordRepository;
 import com.batalha_naval.security.JwtUtil;
 import com.batalha_naval.security.RateLimiterService;
 import com.batalha_naval.service.UserService;
@@ -11,8 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -21,37 +18,11 @@ public class AuthController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
     private final RateLimiterService rateLimiter;
-    private final GameRecordRepository gameRecordRepository;
 
-    public AuthController(UserService userService, JwtUtil jwtUtil, RateLimiterService rateLimiter, GameRecordRepository gameRecordRepository) {
+    public AuthController(UserService userService, JwtUtil jwtUtil, RateLimiterService rateLimiter) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
         this.rateLimiter = rateLimiter;
-        this.gameRecordRepository = gameRecordRepository;
-    }
-
-    @GetMapping("/ranking")
-    public ResponseEntity<List<Map<String, Object>>> getRanking() {
-        List<Object[]> results;
-        try {
-            results = gameRecordRepository.findMultiplayerRankingNative();
-        } catch (Exception e) {
-            try {
-                results = gameRecordRepository.findMultiplayerRanking();
-            } catch (Exception e2) {
-                return ResponseEntity.ok(List.of());
-            }
-        }
-        List<Map<String, Object>> ranking = results.stream()
-                .limit(10)
-                .map(row -> {
-                    Map<String, Object> entry = new LinkedHashMap<>();
-                    entry.put("username", row[0]);
-                    entry.put("wins", ((Number) row[1]).intValue());
-                    return entry;
-                })
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(ranking);
     }
 
     @PostMapping("/register")

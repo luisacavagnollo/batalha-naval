@@ -4,20 +4,18 @@ import { useGame } from '../hooks/useGame';
 import { useSound } from '../hooks/useSound';
 import { HiVolumeUp, HiVolumeOff } from 'react-icons/hi';
 import { FiShoppingCart } from 'react-icons/fi';
-import ConnectionStatus from '../components/ConnectionStatus';
 import WaitingScreen from '../components/WaitingScreen';
 import ProfileModal from '../components/ProfileModal';
 import ShopModal from '../components/ShopModal';
 import PirateBackground from '../components/PirateBackground';
 import UIPanel from '../components/UIPanel';
 import PirateButton from '../components/PirateButton';
-import { fetchProfile, fetchRanking } from '../services/api';
+import { fetchProfile } from '../services/api';
 
 export default function Lobby() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const [code, setCode] = useState('');
-  const [ranking, setRanking] = useState([]);
   const [moedas, setMoedas] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -31,7 +29,6 @@ export default function Lobby() {
 
   useEffect(() => {
     resetGame();
-    fetchRanking().then(data => { if (data) setRanking(data); });
     fetchProfile(token).then(data => {
       if (data?._unauthorized) {
         localStorage.removeItem('token');
@@ -207,57 +204,10 @@ export default function Lobby() {
 
         {/* Conteúdo principal */}
         <div className="flex-1 flex items-center justify-center px-2 sm:px-4 py-4 sm:py-6">
-          <div className="w-full max-w-3xl flex flex-col lg:flex-row gap-4 sm:gap-6">
-
-            {/* Ranking */}
-            <div className="w-full lg:w-72">
-              <UIPanel variant="dark" size="md">
-                <h3 className="text-[#D5AE47] text-xs font-bold tracking-[0.2em] uppercase mb-4 font-['Cinzel',_serif] text-shadow-gold">
-                  Ranking
-                </h3>
-                {ranking.length > 0 ? (
-                  <div className="flex flex-col gap-1.5">
-                    {ranking.map((player, i) => (
-                      <div
-                        key={i}
-                        className={`flex items-center justify-between py-2 px-3 rounded ${
-                          player.username === username
-                            ? 'bg-[#B98B2F]/10 border border-[#B98B2F]/30'
-                            : 'border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-bold w-5 font-['Cinzel',_serif] ${
-                            i === 0 ? 'text-[#D5AE47]' :
-                            i === 1 ? 'text-[#C0C0C0]' :
-                            i === 2 ? 'text-[#CD7F32]' :
-                            'text-[#8B7355]'
-                          }`}>
-                            {i + 1}º
-                          </span>
-                          <span className={`text-sm ${
-                            player.username === username
-                              ? 'text-[#D5AE47] font-bold'
-                              : 'text-[#F4E2B6]'
-                          }`}>
-                            {player.username}
-                          </span>
-                        </div>
-                        <span className="text-[#D5AE47] text-sm font-bold font-['Cinzel',_serif]">
-                          {player.wins}W
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[#8B7355] text-sm">Nenhuma partida multiplayer ainda</p>
-                )}
-              </UIPanel>
-            </div>
+          <div className="w-full max-w-sm">
 
             {/* Ações */}
-            <div className="flex-1 flex items-center">
-              <div className="w-full">
+            <div className="w-full">
                 {/* Modal de espera: Sala criada */}
                 {roomCode && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/60 backdrop-blur-md">
@@ -353,7 +303,6 @@ export default function Lobby() {
               </div>
             </div>
           </div>
-        </div>
 
         {/* Modals */}
         {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
