@@ -264,7 +264,7 @@ export default function PlaceShips() {
             />
 
             {/* Grid + controles */}
-            <UIPanel variant="default" size="md" className="flex flex-col items-center">
+            <UIPanel variant="default" size="md" rivets={false} className="flex flex-col items-center">
               <h2 className="text-[#F4E2B6] text-base sm:text-lg font-bold tracking-wider mb-2 font-['Cinzel',_serif] text-shadow-warm">
                 Posicione seus navios
               </h2>
@@ -339,8 +339,8 @@ export default function PlaceShips() {
               )}
 
               {sending && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/85 backdrop-blur-sm">
-                  <UIPanel variant="default" size="lg" className="max-w-sm mx-4 flex flex-col items-center gap-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/60 backdrop-blur-md">
+                  <UIPanel variant="default" size="lg" rivets={false} className="max-w-sm mx-4 flex flex-col items-center gap-4">
                     <WaitingScreen description="Seus navios estão posicionados" />
                     <PirateButton
                       onClick={() => setSending(false)}

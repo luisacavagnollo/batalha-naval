@@ -260,8 +260,8 @@ export default function Lobby() {
               <div className="w-full">
                 {/* Modal de espera: Sala criada */}
                 {roomCode && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/90 backdrop-blur-sm">
-                    <UIPanel variant="default" size="lg" className="max-w-sm mx-4">
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/60 backdrop-blur-md">
+                    <UIPanel variant="default" size="lg" rivets={false} className="max-w-sm mx-4">
                       <WaitingScreen
                         title="Código da sala"
                         subtitle={roomCode}
@@ -274,8 +274,8 @@ export default function Lobby() {
 
                 {/* Modal de espera: Matchmaking */}
                 {searching && !roomCode && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/90 backdrop-blur-sm">
-                    <UIPanel variant="default" size="lg" className="max-w-sm mx-4">
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/60 backdrop-blur-md">
+                    <UIPanel variant="default" size="lg" rivets={false} className="max-w-sm mx-4">
                       <WaitingScreen
                         title="Buscar Oponente"
                         description="Procurando um oponente digno..."
@@ -287,8 +287,8 @@ export default function Lobby() {
 
                 {/* Modal de espera: Solo */}
                 {loadingSolo && !roomCode && !searching && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/90 backdrop-blur-sm">
-                    <UIPanel variant="default" size="lg" className="max-w-sm mx-4">
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d0b09]/60 backdrop-blur-md">
+                    <UIPanel variant="default" size="lg" rivets={false} className="max-w-sm mx-4">
                       <WaitingScreen
                         description="Preparando a batalha..."
                       />

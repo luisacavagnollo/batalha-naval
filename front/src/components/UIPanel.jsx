@@ -15,7 +15,7 @@
 export default function UIPanel({
   variant = 'default',
   size = 'md',
-  rivets = true,
+  rivets = false,
   className = '',
   children,
   noPadding = false,
