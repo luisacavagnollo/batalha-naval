@@ -139,8 +139,7 @@ export default function Lobby() {
   return (
     <PirateBackground>
       <div className="min-h-screen flex flex-col">
-        <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
-
+        
         {/* Header */}
         <header className="w-full px-3 sm:px-8 py-3 sm:py-4 flex items-center justify-between relative z-10">
           <h1 className="text-base sm:text-2xl font-bold text-[#D5AE47] tracking-wider uppercase font-['Cinzel_Decorative',_'Eagle_Lake',_serif] text-shadow-gold truncate">

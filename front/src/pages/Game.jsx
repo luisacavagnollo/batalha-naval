@@ -534,8 +534,7 @@ export default function Game() {
   return (
     <PirateBackground variant="battle">
       <div className="min-h-screen flex flex-col">
-        <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
-
+        
         {/* Header */}
         <header className="w-full px-4 sm:px-8 py-4 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">

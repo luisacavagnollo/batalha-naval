@@ -53,8 +53,7 @@ export default function GameOver() {
   return (
     <PirateBackground variant="battle">
       <div className="min-h-screen flex flex-col">
-        <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
-
+        
         {/* Header */}
         <header className="w-full px-4 sm:px-8 py-6 flex items-center justify-center">
           <h1 className="text-2xl sm:text-3xl font-bold text-[#D5AE47] tracking-wider uppercase font-['Cinzel_Decorative',_'Eagle_Lake',_serif] text-shadow-gold">
