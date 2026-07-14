@@ -1,6 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Eagle+Lake&family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700;900&display=swap');
 @import "tailwindcss";
 
+/* ─── Fix viewport mobile (endereço bar) ─── */
+html, body, #root {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ─── Prevenir zoom indesejado em inputs no iOS ─── */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    TEMA PIRATA AAA - Batalha Naval
    Inspirado em Sea of Thieves, Sid Meier's Pirates, LoR Bilgewater

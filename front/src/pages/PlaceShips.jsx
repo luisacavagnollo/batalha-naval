@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { useSound } from '../hooks/useSound';
+import { useResponsiveCellSize } from '../hooks/useResponsiveCellSize';
 import { HiVolumeUp, HiVolumeOff } from 'react-icons/hi';
 import ConnectionStatus from '../components/ConnectionStatus';
 import ShipSelector from '../components/ShipSelector';
@@ -68,25 +69,6 @@ const SKINS_MAP = {
   kitty: SHIPS_KITTY,
 };
 
-const CELL_SIZE_DESKTOP = 40;
-const CELL_SIZE_MOBILE = 32;
-
-function useResponsiveCellSize() {
-  const [cellSize, setCellSize] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768 ? CELL_SIZE_MOBILE : CELL_SIZE_DESKTOP
-  );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setCellSize(window.innerWidth < 768 ? CELL_SIZE_MOBILE : CELL_SIZE_DESKTOP);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return cellSize;
-}
-
 export default function PlaceShips() {
   const { gameId } = useParams();
   const token = localStorage.getItem('token');
@@ -94,7 +76,7 @@ export default function PlaceShips() {
   const navigate = useNavigate();
   const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, leaveGame, connectionStatus, reconnectInfo } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
-  const cellSize = useResponsiveCellSize();
+  const cellSize = useResponsiveCellSize({ maxCellSize: 40, boards: 1, horizontalPadding: 80 });
 
   const [orientation, setOrientation] = useState('HORIZONTAL');
   const [selectedShip, setSelectedShip] = useState(null);

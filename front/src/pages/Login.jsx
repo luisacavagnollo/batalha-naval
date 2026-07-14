@@ -69,9 +69,9 @@ export default function Login() {
     <PirateBackground>
       <div className="min-h-screen flex flex-col">
         {/* Header com título */}
-        <header className="w-full px-4 sm:px-8 py-6 flex items-center justify-center">
+        <header className="w-full px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-center">
           <div className="text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#D5AE47] tracking-wider uppercase font-['Cinzel_Decorative',_'Eagle_Lake',_serif] text-shadow-gold">
+            <h1 className="text-2xl sm:text-4xl font-bold text-[#D5AE47] tracking-wider uppercase font-['Cinzel_Decorative',_'Eagle_Lake',_serif] text-shadow-gold">
               Batalha Naval
             </h1>
             <p className="text-[#C6AE78] text-xs tracking-[0.3em] uppercase mt-1 font-['Cinzel',_serif]">
@@ -81,7 +81,7 @@ export default function Login() {
         </header>
 
         {/* Formulário central */}
-        <div className="flex-1 flex items-center justify-center px-4 pb-8">
+        <div className="flex-1 flex items-center justify-center px-3 sm:px-4 pb-6 sm:pb-8">
           <UIPanel variant="default" size="lg" className="w-full max-w-sm">
             {/* Tabs Entrar/Cadastrar */}
             <div className="flex mb-6 border-b-[3px] border-[#2E2E2E] relative">

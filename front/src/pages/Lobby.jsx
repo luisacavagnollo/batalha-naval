@@ -142,11 +142,11 @@ export default function Lobby() {
         <ConnectionStatus connectionStatus={connectionStatus} reconnectInfo={reconnectInfo} />
 
         {/* Header */}
-        <header className="w-full px-4 sm:px-8 py-4 flex items-center justify-between relative z-10">
-          <h1 className="text-xl sm:text-2xl font-bold text-[#D5AE47] tracking-wider uppercase font-['Cinzel_Decorative',_'Eagle_Lake',_serif] text-shadow-gold">
+        <header className="w-full px-3 sm:px-8 py-3 sm:py-4 flex items-center justify-between relative z-10">
+          <h1 className="text-base sm:text-2xl font-bold text-[#D5AE47] tracking-wider uppercase font-['Cinzel_Decorative',_'Eagle_Lake',_serif] text-shadow-gold truncate">
             Batalha Naval
           </h1>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {/* Moedas */}
             <div className="flex items-center gap-1 px-2 py-1 rounded bg-[#2B1D14]/60 border border-[#7A5A28]/30">
               <span className="text-sm">🪙</span>
@@ -207,8 +207,8 @@ export default function Lobby() {
         <div className="divider-ornate mx-8" />
 
         {/* Conteúdo principal */}
-        <div className="flex-1 flex items-center justify-center px-4 py-6">
-          <div className="w-full max-w-3xl flex flex-col lg:flex-row gap-6">
+        <div className="flex-1 flex items-center justify-center px-2 sm:px-4 py-4 sm:py-6">
+          <div className="w-full max-w-3xl flex flex-col lg:flex-row gap-4 sm:gap-6">
 
             {/* Ranking */}
             <div className="w-full lg:w-72">

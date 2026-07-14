@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import ConnectionStatus from '../components/ConnectionStatus';
@@ -14,21 +14,30 @@ export default function GameOver() {
   const token = localStorage.getItem('token');
   const isVictory = winner === username;
   const navigate = useNavigate();
-  const { connect, requestRematch, rematchGameId, rematchPending, rematchRequested, resetGame, subscribeToGame, gameState, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, requestRematch, rematchGameId, rematchPending, rematchRequested, resetGame, resetRematch, subscribeToGame, gameState, connectionStatus, reconnectInfo } = useGame(token);
+  const [wantsRematch, setWantsRematch] = useState(false);
 
   useEffect(() => {
+    // Limpar qualquer rematchGameId residual ao entrar na tela
+    resetRematch();
     connect().then(() => {
       if (gameId) subscribeToGame(gameId);
     }).catch(() => {});
-  }, [connect, gameId, subscribeToGame]);
+  }, [connect, gameId, subscribeToGame, resetRematch]);
 
   useEffect(() => {
-    if (rematchGameId) {
+    // Só navega se o jogador explicitamente pediu/aceitou rematch
+    if (rematchGameId && wantsRematch) {
       navigate(`/place-ships/${rematchGameId}`);
     }
-  }, [rematchGameId, navigate]);
+  }, [rematchGameId, wantsRematch, navigate]);
 
   const handleRematch = () => {
+    setWantsRematch(true);
+    if (rematchGameId) {
+      navigate(`/place-ships/${rematchGameId}`);
+      return;
+    }
     if (gameId) requestRematch(gameId);
   };
 

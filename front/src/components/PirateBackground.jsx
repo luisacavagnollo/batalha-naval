@@ -10,7 +10,7 @@ export default function PirateBackground({ children, variant = 'lobby' }) {
     : '/backgrounds/lobby-bg.png';
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#1A0F09]">
+    <div className="min-h-[100dvh] relative overflow-hidden bg-[#1A0F09]">
       {/* Camada 1: Imagem de fundo */}
       <div
         className="fixed inset-0 z-0"

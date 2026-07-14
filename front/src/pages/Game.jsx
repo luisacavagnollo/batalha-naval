@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGame } from '../hooks/useGame';
 import { useSound } from '../hooks/useSound';
+import { useResponsiveCellSize } from '../hooks/useResponsiveCellSize';
 import { HiVolumeUp, HiVolumeOff } from 'react-icons/hi';
 import ConnectionStatus from '../components/ConnectionStatus';
 import TurnIndicator from '../components/TurnIndicator';
@@ -10,23 +11,7 @@ import PirateBackground from '../components/PirateBackground';
 import UIPanel from '../components/UIPanel';
 import PirateButton from '../components/PirateButton';
 
-const CELL_SIZE = 36;
-const CELL_SIZE_MOBILE = 28;
 const GAP = 2;
-
-function useResponsiveCellSize() {
-  const [cellSize, setCellSize] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768 ? CELL_SIZE_MOBILE : CELL_SIZE
-  );
-  useEffect(() => {
-    const handleResize = () => {
-      setCellSize(window.innerWidth < 768 ? CELL_SIZE_MOBILE : CELL_SIZE);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  return cellSize;
-}
 
 const OCEAN_COLORS = [
   'from-[#0a1a2e] to-[#0f2640]',
@@ -219,9 +204,9 @@ function detectShipsFromHits(board) {
 }
 
 const FLEET_CELL = 44;
-const FLEET_CELL_MOBILE = 34;
+const FLEET_CELL_MOBILE = 28;
 const FLEET_HEIGHT = 40;
-const FLEET_HEIGHT_MOBILE = 30;
+const FLEET_HEIGHT_MOBILE = 24;
 const MAX_SHIP_SIZE = 5;
 
 
@@ -461,7 +446,7 @@ export default function Game() {
   const [sunkOpponentCells, setSunkOpponentCells] = useState(new Set());
   const [gameFinished, setGameFinished] = useState(false);
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
-  const cellSize = useResponsiveCellSize();
+  const cellSize = useResponsiveCellSize({ maxCellSize: 36, boards: 2, horizontalPadding: 120 });
   const prevGameStateRef = useRef(null);
   const gameOverTimerRef = useRef(null);
 
@@ -583,7 +568,7 @@ export default function Game() {
         <TurnIndicator gameFinished={gameFinished} gameState={gameState} username={username} />
 
         {/* Boards */}
-        <div className="flex-1 flex items-center justify-center px-2 sm:px-4 pb-20">
+        <div className="flex-1 flex items-center justify-center px-2 sm:px-4 pb-4 sm:pb-8 overflow-hidden">
           <div className="flex flex-col xl:flex-row items-center xl:items-stretch gap-6">
             {/* Desktop ship list - left */}
             <ShipList ships={myShipsStatus} title="Minha Frota" align="left" mobile={false} />
@@ -622,7 +607,9 @@ export default function Game() {
           </div>
         </div>
 
-        <EmotePanel onSendEmote={(e) => sendEmote(gameId, e)} receivedEmote={emote} />
+        {gameState?.opponentName !== 'Capitão Bot' && (
+          <EmotePanel onSendEmote={(e) => sendEmote(gameId, e)} receivedEmote={emote} />
+        )}
       </div>
     </PirateBackground>
   );

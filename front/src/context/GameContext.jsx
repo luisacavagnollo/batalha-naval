@@ -40,6 +40,13 @@ function gameReducer(state, action) {
       return { ...state, connectionStatus: action.payload };
     case 'SET_RECONNECT_INFO':
       return { ...state, reconnectInfo: action.payload };
+    case 'RESET_REMATCH':
+      return {
+        ...state,
+        rematchGameId: null,
+        rematchPending: false,
+        rematchRequested: false,
+      };
     case 'RESET_GAME':
       return {
         ...state,
@@ -336,6 +343,10 @@ export function GameProvider({ children }) {
     dispatch({ type: 'RESET_GAME' });
   }, []);
 
+  const resetRematch = useCallback(() => {
+    dispatch({ type: 'RESET_REMATCH' });
+  }, []);
+
   const subscribeToGame = useCallback((gameId) => {
     if (!clientRef.current || subscribedGamesRef.current.has(gameId)) return;
     subscribedGamesRef.current.add(gameId);
@@ -442,11 +453,11 @@ export function GameProvider({ children }) {
   }, [unsubscribeAll]);
 
   const actions = useMemo(() => ({
-    connect, disconnect, resetGame, subscribeToGame, unsubscribeFromGame,
+    connect, disconnect, resetGame, resetRematch, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
     shoot, sendEmote, requestRematch, surrender, leaveGame,
     joinMatchmaking, leaveMatchmaking,
-  }), [connect, disconnect, resetGame, subscribeToGame, unsubscribeFromGame,
+  }), [connect, disconnect, resetGame, resetRematch, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
     shoot, sendEmote, requestRematch, surrender, leaveGame,
     joinMatchmaking, leaveMatchmaking]);
@@ -493,6 +504,7 @@ export function useGame(token) {
     connect,
     disconnect: actions.disconnect,
     resetGame: actions.resetGame,
+    resetRematch: actions.resetRematch,
     subscribeToGame: actions.subscribeToGame,
     unsubscribeFromGame: actions.unsubscribeFromGame,
     createRoom: actions.createRoom,
