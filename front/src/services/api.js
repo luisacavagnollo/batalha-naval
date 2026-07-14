@@ -70,7 +70,7 @@ export async function equipSkin(token, skinId) {
 }
 
 export async function fetchRanking() {
-  const res = await fetch(`${API_URL}/api/stats/ranking`);
+  const res = await fetch(`${API_URL}/api/auth/ranking`);
   if (!res.ok) return [];
   return res.json();
 }
