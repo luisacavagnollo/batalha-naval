@@ -1,6 +1,5 @@
 package com.batalha_naval.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -16,9 +15,6 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor authInterceptor;
-
-    @Value("${cors.allowed-origins}")
-    private String allowedOrigins;
 
     public WebSocketConfig(WebSocketAuthInterceptor authInterceptor) {
         this.authInterceptor = authInterceptor;
