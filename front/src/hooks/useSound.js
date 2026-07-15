@@ -317,6 +317,18 @@ function toggleMuteInternal() {
   notifyListeners();
 }
 
+// --- Preload all sound effects on first user interaction ---
+let preloaded = false;
+const SOUND_EFFECTS = ['click', 'splash', 'explosion', 'sunk'];
+
+function preloadSounds() {
+  if (preloaded) return;
+  preloaded = true;
+  SOUND_EFFECTS.forEach(name => {
+    loadAudioBuffer(`/sounds/${name}.mp3`);
+  });
+}
+
 // --- Hook ---
 
 /**
@@ -331,6 +343,8 @@ export function useSound() {
       setMuted(currentMuted);
     };
     listeners.add(handler);
+    // Pré-carregar sons na primeira montagem
+    preloadSounds();
     return () => listeners.delete(handler);
   }, []);
 
