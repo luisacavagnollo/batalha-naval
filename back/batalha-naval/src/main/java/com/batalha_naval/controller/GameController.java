@@ -12,6 +12,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Controller;
 
 import javax.annotation.PreDestroy;
+import javax.validation.ConstraintViolation;
+import javax.validation.Validator;
 import java.security.Principal;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Controller
 @EnableScheduling
@@ -27,6 +30,7 @@ public class GameController {
     private final GameService gameService;
     private final BotService botService;
     private final SimpMessagingTemplate messaging;
+    private final Validator validator;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
     // Guarda quais games são singleplayer
@@ -35,11 +39,24 @@ public class GameController {
     private final Set<String> botTurnInProgress = ConcurrentHashMap.newKeySet();
     private final com.batalha_naval.service.MatchmakingService matchmakingService;
 
-    public GameController(GameService gameService, BotService botService, SimpMessagingTemplate messaging, com.batalha_naval.service.MatchmakingService matchmakingService) {
+    public GameController(GameService gameService, BotService botService, SimpMessagingTemplate messaging, com.batalha_naval.service.MatchmakingService matchmakingService, Validator validator) {
         this.gameService = gameService;
         this.botService = botService;
         this.messaging = messaging;
         this.matchmakingService = matchmakingService;
+        this.validator = validator;
+    }
+
+    /**
+     * Valida um DTO programaticamente (necessário para @MessageMapping, onde @Valid não funciona).
+     * Retorna a primeira mensagem de erro, ou null se válido.
+     */
+    private <T> String validate(T dto) {
+        Set<ConstraintViolation<T>> violations = validator.validate(dto);
+        if (violations.isEmpty()) return null;
+        return violations.stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.joining("; "));
     }
 
     @PreDestroy
@@ -134,23 +151,24 @@ public class GameController {
         if (principal == null) return;
         String playerId = principal.getName();
         try {
+            // Validar campos obrigatórios para place-ship
             if (msg.getGameId() == null || msg.getShipType() == null || msg.getOrientation() == null
                     || msg.getRow() == null || msg.getCol() == null) {
                 messaging.convertAndSendToUser(playerId, "/topic/game/error",
                         Map.of("message", "Dados incompletos para posicionar navio"));
                 return;
             }
-            int row = msg.getRow();
-            int col = msg.getCol();
-            if (row < 0 || row >= 10 || col < 0 || col >= 10) {
+            // Validar constraints do DTO (bounds 0-9, tamanho do gameId)
+            String validationError = validate(msg);
+            if (validationError != null) {
                 messaging.convertAndSendToUser(playerId, "/topic/game/error",
-                        Map.of("message", "Posição fora dos limites do tabuleiro"));
+                        Map.of("message", validationError));
                 return;
             }
             gameService.placeShip(
                     msg.getGameId(), playerId,
                     ShipType.valueOf(msg.getShipType()),
-                    row, col,
+                    msg.getRow(), msg.getCol(),
                     Orientation.valueOf(msg.getOrientation()));
             Game game = gameService.getGame(msg.getGameId());
             sendGameStateToPlayers(game);
@@ -177,15 +195,15 @@ public class GameController {
                     Map.of("message", "Dados incompletos para disparo"));
             return;
         }
-        int row = msg.getRow();
-        int col = msg.getCol();
-        if (row < 0 || row >= 10 || col < 0 || col >= 10) {
+        // Validar constraints do DTO (bounds 0-9, tamanho do gameId)
+        String validationError = validate(msg);
+        if (validationError != null) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
-                    Map.of("message", "Posição fora dos limites do tabuleiro"));
+                    Map.of("message", validationError));
             return;
         }
         try {
-            gameService.shoot(msg.getGameId(), playerId, row, col);
+            gameService.shoot(msg.getGameId(), playerId, msg.getRow(), msg.getCol());
             Game game = gameService.getGame(msg.getGameId());
             sendGameStateToPlayers(game);
 
@@ -220,7 +238,8 @@ public class GameController {
     public void sendEmote(EmoteMessage msg, Principal principal) {
         if (principal == null) return;
         String playerId = principal.getName();
-        if (msg.getGameId() == null) return;
+        String validationError = validate(msg);
+        if (validationError != null) return; // Emotes inválidos são silenciosamente ignorados
         try {
             Game game = gameService.getGame(msg.getGameId());
             if (game == null) return;
