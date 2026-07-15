@@ -2,6 +2,15 @@
 
 Jogo de Batalha Naval online multiplayer com Fog of War. Cada jogador enxerga apenas seu próprio tabuleiro e o resultado dos tiros no adversário. O servidor é **autoritativo** — nunca expõe o estado do tabuleiro do oponente.
 
+## 🌐 Acesso Online
+
+| Camada | URL |
+|--------|-----|
+| Frontend | https://batalha-naval-orpin.vercel.app/ |
+| Backend | https://batalha-naval-iau0.onrender.com |
+
+> **Nota:** O backend está hospedado no free tier do Render, que pode demorar ~30s para iniciar caso esteja inativo.
+
 ## Stack
 
 | Camada | Tecnologia | Justificativa |
@@ -65,6 +74,16 @@ Token JWT gerado no login/registro, validado no filtro HTTP (`JwtAuthFilter`) e 
 - CORS configurável via variável de ambiente.
 
 ## Endpoints
+
+### Documentação Interativa (Swagger)
+A API possui documentação interativa gerada automaticamente via SpringDoc OpenAPI:
+
+| Recurso | URL |
+|---------|-----|
+| Swagger UI | [`/swagger-ui.html`](https://batalha-naval-iau0.onrender.com/swagger-ui.html) |
+| OpenAPI JSON | [`/v3/api-docs`](https://batalha-naval-iau0.onrender.com/v3/api-docs) |
+
+> Localmente: `http://localhost:8080/swagger-ui.html`
 
 ### REST (Autenticação e Perfil)
 | Método | Path | Descrição |
