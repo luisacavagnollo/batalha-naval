@@ -2,6 +2,9 @@ package com.batalha_naval.service;
 
 import com.batalha_naval.domain.*;
 import com.batalha_naval.dto.PlayerStatsResponse;
+import com.batalha_naval.exception.GameFullException;
+import com.batalha_naval.exception.GameNotFoundException;
+import com.batalha_naval.exception.InvalidActionException;
 import com.batalha_naval.model.GameRecord;
 import com.batalha_naval.model.PlayerStats;
 import com.batalha_naval.model.User;
@@ -49,21 +52,21 @@ public class GameService {
     public Game joinGame(String code, String playerId) {
         Game game = games.get(code.toUpperCase());
         if (game == null) {
-            throw new IllegalArgumentException("Sala não encontrada");
+            throw new GameNotFoundException(code);
         }
         // Partida solo não aceita outros jogadores
         if ("BOT".equals(game.getPlayer2Id())) {
-            throw new IllegalArgumentException("Sala não encontrada");
+            throw new GameNotFoundException(code);
         }
         if (game.getPlayer2Id() != null) {
-            throw new IllegalStateException("Sala já está cheia");
+            throw new GameFullException(code);
         }
         // Se o criador tenta entrar na própria sala, significa que ele cancelou
         // mas o leave ainda não foi processado. Remover a sala e informar que não existe.
         if (playerId.equals(game.getPlayer1Id())) {
             games.remove(code.toUpperCase());
             codeToGameId.remove(code.toUpperCase());
-            throw new IllegalArgumentException("Sala não encontrada");
+            throw new GameNotFoundException(code);
         }
         game.setPlayer2Id(playerId);
         game.setPlayer2Skin(getPlayerSkin(playerId));
@@ -74,7 +77,7 @@ public class GameService {
     public Game getGame(String gameId) {
         Game game = games.get(gameId);
         if (game == null) {
-            throw new IllegalArgumentException("Game not found: " + gameId);
+            throw new GameNotFoundException(gameId);
         }
         return game;
     }
@@ -99,6 +102,9 @@ public class GameService {
         return outcome;
     }
 
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long RETRY_INITIAL_DELAY_MS = 100;
+
     private void persistGameResult(Game game) {
         String winner = game.getWinnerId();
         String p1 = game.getPlayer1Id();
@@ -108,18 +114,16 @@ public class GameService {
 
         log.info("Persistindo resultado: p1={}, p2={}, winner={}, singlePlayer={}", p1, p2, winner, isSinglePlayer);
 
-        // Salvar registro da partida
-        try {
+        // Salvar registro da partida com retry
+        retryWithBackoff("GameRecord", () -> {
             GameRecord record = new GameRecord(p1, p2 != null ? p2 : "BOT", winner, now, isSinglePlayer);
             gameRecordRepository.save(record);
             gameRecordRepository.flush();
             log.info("GameRecord salvo com sucesso: winner={}, singlePlayer={}", winner, isSinglePlayer);
-        } catch (Exception e) {
-            log.error("Erro ao salvar GameRecord: {}", e.getMessage(), e);
-        }
+        });
 
-        // Atualizar stats dos jogadores (não salva stats para BOT)
-        try {
+        // Atualizar stats dos jogadores com retry
+        retryWithBackoff("PlayerStats", () -> {
             if (p1 != null && !p1.equals("BOT")) {
                 PlayerStats stats1 = playerStatsRepository.findByUsername(p1)
                         .orElse(new PlayerStats(p1));
@@ -141,20 +145,45 @@ public class GameService {
                 }
                 playerStatsRepository.save(stats2);
             }
-        } catch (Exception e) {
-            log.error("Erro ao atualizar PlayerStats: {}", e.getMessage(), e);
-        }
+        });
 
-        // Adicionar 10 moedas ao vencedor
-        try {
+        // Adicionar 10 moedas ao vencedor com retry
+        retryWithBackoff("Moedas", () -> {
             if (winner != null && !winner.equals("BOT")) {
                 userRepository.findByUsername(winner).ifPresent(user -> {
                     user.setMoedas(user.getMoedas() + 10);
                     userRepository.save(user);
                 });
             }
-        } catch (Exception e) {
-            log.error("Erro ao creditar moedas: {}", e.getMessage(), e);
+        });
+    }
+
+    /**
+     * Executa uma operação com até MAX_RETRY_ATTEMPTS tentativas e backoff exponencial.
+     * Se todas falharem, loga o erro mas não propaga a exceção (para não afetar o fluxo do jogo).
+     */
+    private void retryWithBackoff(String operationName, Runnable operation) {
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+            try {
+                operation.run();
+                return; // Sucesso — sai do loop
+            } catch (Exception e) {
+                if (attempt == MAX_RETRY_ATTEMPTS) {
+                    log.error("Falha ao persistir {} após {} tentativas: {}",
+                            operationName, MAX_RETRY_ATTEMPTS, e.getMessage(), e);
+                } else {
+                    long delay = RETRY_INITIAL_DELAY_MS * (1L << (attempt - 1)); // 100ms, 200ms, 400ms
+                    log.warn("Tentativa {}/{} falhou para {}: {}. Retentando em {}ms...",
+                            attempt, MAX_RETRY_ATTEMPTS, operationName, e.getMessage(), delay);
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.error("Retry interrompido para {}", operationName);
+                        return;
+                    }
+                }
+            }
         }
     }
 
@@ -191,7 +220,7 @@ public class GameService {
     public Game surrender(String gameId, String playerId) {
         Game game = getGame(gameId);
         if (game.getPhase() == GamePhase.FINISHED) {
-            throw new IllegalStateException("O jogo já terminou");
+            throw new InvalidActionException("O jogo já terminou");
         }
         String opponentId = game.getOpponentId(playerId);
         game.setPhase(GamePhase.FINISHED);
@@ -235,7 +264,7 @@ public class GameService {
     public Game rematch(String oldGameId) {
         Game oldGame = getGame(oldGameId);
         if (oldGame.getPhase() != GamePhase.FINISHED) {
-            throw new IllegalStateException("O jogo ainda não terminou");
+            throw new InvalidActionException("O jogo ainda não terminou");
         }
         Game newGame = new Game();
         String code = generateCode();

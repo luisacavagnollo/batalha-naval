@@ -4,6 +4,9 @@ import com.batalha_naval.domain.*;
 import com.batalha_naval.dto.EmoteMessage;
 import com.batalha_naval.dto.GameMessage;
 import com.batalha_naval.dto.GameStateResponse;
+import com.batalha_naval.exception.GameFullException;
+import com.batalha_naval.exception.GameNotFoundException;
+import com.batalha_naval.exception.InvalidActionException;
 import com.batalha_naval.service.BotService;
 import com.batalha_naval.service.GameService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -117,9 +120,12 @@ public class GameController {
         try {
             Game game = gameService.joinGame(msg.getGameId(), playerId);
             sendGameStateToPlayers(game);
-        } catch (Exception e) {
+        } catch (GameNotFoundException e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
-                    Map.of("message", e.getMessage()));
+                    Map.of("message", "Sala não encontrada"));
+        } catch (GameFullException e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Sala já está cheia"));
         }
     }
 
@@ -150,21 +156,21 @@ public class GameController {
     public void placeShip(GameMessage msg, Principal principal) {
         if (principal == null) return;
         String playerId = principal.getName();
+        // Validar campos obrigatórios para place-ship
+        if (msg.getGameId() == null || msg.getShipType() == null || msg.getOrientation() == null
+                || msg.getRow() == null || msg.getCol() == null) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Dados incompletos para posicionar navio"));
+            return;
+        }
+        // Validar constraints do DTO (bounds 0-9, tamanho do gameId)
+        String validationError = validate(msg);
+        if (validationError != null) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", validationError));
+            return;
+        }
         try {
-            // Validar campos obrigatórios para place-ship
-            if (msg.getGameId() == null || msg.getShipType() == null || msg.getOrientation() == null
-                    || msg.getRow() == null || msg.getCol() == null) {
-                messaging.convertAndSendToUser(playerId, "/topic/game/error",
-                        Map.of("message", "Dados incompletos para posicionar navio"));
-                return;
-            }
-            // Validar constraints do DTO (bounds 0-9, tamanho do gameId)
-            String validationError = validate(msg);
-            if (validationError != null) {
-                messaging.convertAndSendToUser(playerId, "/topic/game/error",
-                        Map.of("message", validationError));
-                return;
-            }
             gameService.placeShip(
                     msg.getGameId(), playerId,
                     ShipType.valueOf(msg.getShipType()),
@@ -177,12 +183,12 @@ public class GameController {
             if (singlePlayerGames.contains(game.getId()) && botService.isBotTurn(game)) {
                 scheduleBotTurn(game);
             }
+        } catch (GameNotFoundException e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Sala não encontrada"));
         } catch (IllegalArgumentException e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
                     Map.of("message", e.getMessage() != null ? e.getMessage() : "Dados inválidos"));
-        } catch (Exception e) {
-            messaging.convertAndSendToUser(playerId, "/topic/game/error",
-                    Map.of("message", e.getMessage() != null ? e.getMessage() : "Erro ao posicionar navio"));
         }
     }
 
@@ -211,9 +217,12 @@ public class GameController {
             if (singlePlayerGames.contains(game.getId()) && botService.isBotTurn(game)) {
                 scheduleBotTurn(game);
             }
-        } catch (Exception e) {
+        } catch (GameNotFoundException e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
-                    Map.of("message", e.getMessage() != null ? e.getMessage() : "Erro ao disparar"));
+                    Map.of("message", "Sala não encontrada"));
+        } catch (InvalidActionException e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", e.getMessage()));
         }
     }
 
@@ -229,8 +238,8 @@ public class GameController {
                 singlePlayerGames.remove(msg.getGameId());
             }
             gameService.abandonGame(msg.getGameId(), playerId);
-        } catch (Exception e) {
-            // Silently ignore — player is leaving anyway
+        } catch (GameNotFoundException e) {
+            // Jogo já foi removido — ignorar silenciosamente
         }
     }
 
@@ -242,15 +251,14 @@ public class GameController {
         if (validationError != null) return; // Emotes inválidos são silenciosamente ignorados
         try {
             Game game = gameService.getGame(msg.getGameId());
-            if (game == null) return;
             String opponentId = game.getOpponentId(playerId);
             if (opponentId != null && !opponentId.equals(BotService.BOT_ID)) {
                 msg.setFromPlayer(playerId);
                 messaging.convertAndSendToUser(opponentId,
                         "/topic/game/" + game.getId() + "/emote", msg);
             }
-        } catch (Exception e) {
-            // Silently ignore emote errors — not critical
+        } catch (GameNotFoundException e) {
+            // Jogo não encontrado — emote descartado silenciosamente
         }
     }
 
@@ -272,7 +280,10 @@ public class GameController {
                 botService.cleanup(game.getId());
                 singlePlayerGames.remove(game.getId());
             }
-        } catch (Exception e) {
+        } catch (GameNotFoundException e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Sala não encontrada"));
+        } catch (InvalidActionException e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
                     Map.of("message", e.getMessage()));
         }
@@ -332,7 +343,10 @@ public class GameController {
                 messaging.convertAndSendToUser(playerId, "/topic/game/" + msg.getGameId() + "/rematch-pending",
                         Map.of("waiting", true));
             }
-        } catch (Exception e) {
+        } catch (GameNotFoundException e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Sala não encontrada"));
+        } catch (InvalidActionException e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
                     Map.of("message", e.getMessage()));
         }

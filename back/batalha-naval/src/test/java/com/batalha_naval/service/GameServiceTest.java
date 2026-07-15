@@ -1,6 +1,9 @@
 package com.batalha_naval.service;
 
 import com.batalha_naval.domain.*;
+import com.batalha_naval.dto.PlayerStatsResponse;
+import com.batalha_naval.exception.GameFullException;
+import com.batalha_naval.exception.GameNotFoundException;
 import com.batalha_naval.model.GameRecord;
 import com.batalha_naval.model.PlayerStats;
 import com.batalha_naval.model.User;
@@ -54,18 +57,18 @@ class GameServiceTest {
     void joinGame_alreadyFull_throws() {
         Game game = gameService.createGame("player1");
         gameService.joinGame(game.getId(), "player2");
-        assertThrows(IllegalStateException.class, () -> gameService.joinGame(game.getId(), "player3"));
+        assertThrows(GameFullException.class, () -> gameService.joinGame(game.getId(), "player3"));
     }
 
     @Test
     void joinGame_samePlayer_throws() {
         Game game = gameService.createGame("player1");
-        assertThrows(IllegalArgumentException.class, () -> gameService.joinGame(game.getId(), "player1"));
+        assertThrows(GameNotFoundException.class, () -> gameService.joinGame(game.getId(), "player1"));
     }
 
     @Test
     void joinGame_invalidCode_throws() {
-        assertThrows(IllegalArgumentException.class, () -> gameService.joinGame("ZZZZ", "player1"));
+        assertThrows(GameNotFoundException.class, () -> gameService.joinGame("ZZZZ", "player1"));
     }
 
     @Test
