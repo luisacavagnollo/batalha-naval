@@ -17,6 +17,10 @@ public class Board {
     public List<Ship> getShips() { return ships; }
 
     public boolean placeShip(ShipType type, int row, int col, Orientation orientation) {
+        // Impede colocar dois navios do mesmo tipo
+        boolean alreadyPlaced = ships.stream().anyMatch(s -> s.getType() == type);
+        if (alreadyPlaced) return false;
+
         Ship ship = new Ship();
         ship.setType(type);
         ship.setStartRow(row);

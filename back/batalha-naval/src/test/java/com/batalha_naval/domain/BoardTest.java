@@ -81,6 +81,13 @@ class BoardTest {
     }
 
     @Test
+    void placeShip_duplicateType_returnsFalse() {
+        assertTrue(board.placeShip(ShipType.CARRIER, 0, 0, Orientation.HORIZONTAL));
+        assertFalse(board.placeShip(ShipType.CARRIER, 2, 0, Orientation.HORIZONTAL));
+        assertEquals(1, board.getShips().size());
+    }
+
+    @Test
     void getGridForOpponent_hidesShipPositions() {
         board.placeShip(ShipType.DESTROYER, 0, 0, Orientation.HORIZONTAL);
         board.receiveShot(0, 0); // hit

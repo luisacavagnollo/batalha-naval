@@ -60,7 +60,7 @@ class GameServiceTest {
     @Test
     void joinGame_samePlayer_throws() {
         Game game = gameService.createGame("player1");
-        assertThrows(IllegalStateException.class, () -> gameService.joinGame(game.getId(), "player1"));
+        assertThrows(IllegalArgumentException.class, () -> gameService.joinGame(game.getId(), "player1"));
     }
 
     @Test

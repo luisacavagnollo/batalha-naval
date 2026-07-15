@@ -18,8 +18,10 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.*;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -38,11 +40,6 @@ public class GameWebSocketIntegrationTest {
 
     private WebSocketStompClient stompClient;
     private final ObjectMapper mapper = new ObjectMapper();
-
-    private String token1;
-    private String token2;
-    private String username1 = "player1_" + System.currentTimeMillis();
-    private String username2 = "player2_" + System.currentTimeMillis();
 
     @BeforeEach
     void setup() {
@@ -96,8 +93,10 @@ public class GameWebSocketIntegrationTest {
     @Order(1)
     void testFullMultiplayerFlow() throws Exception {
         // 1. Registrar dois jogadores
-        token1 = registerAndGetToken(username1);
-        token2 = registerAndGetToken(username2);
+        String username1 = "p1_" + UUID.randomUUID().toString().substring(0, 8);
+        String username2 = "p2_" + UUID.randomUUID().toString().substring(0, 8);
+        String token1 = registerAndGetToken(username1);
+        String token2 = registerAndGetToken(username2);
         assertNotNull(token1);
         assertNotNull(token2);
 
@@ -117,7 +116,8 @@ public class GameWebSocketIntegrationTest {
                 createdQueue.offer((Map) payload);
             }
         });
-        Thread.sleep(200);
+
+        await().atMost(2, TimeUnit.SECONDS).until(() -> session1.isConnected());
 
         session1.send("/app/game/create", new byte[0]);
         Map created = createdQueue.poll(5, TimeUnit.SECONDS);
@@ -146,9 +146,8 @@ public class GameWebSocketIntegrationTest {
                 stateQueue2.offer((GameStateResponse) payload);
             }
         });
-        Thread.sleep(200);
 
-        // 5. Player2 entra na sala
+        // 5. Player2 entra na sala — aguarda state chegar para ambos
         Map<String, String> joinMsg = Map.of("gameId", gameId);
         session2.send("/app/game/join", joinMsg);
 
@@ -173,7 +172,7 @@ public class GameWebSocketIntegrationTest {
                     "gameId", gameId, "shipType", ships[i][0],
                     "row", i, "col", 0, "orientation", ships[i][1]);
             session1.send("/app/game/place-ship", placeMsg1);
-            stateQueue1.poll(5, TimeUnit.SECONDS); // consumir state update
+            assertNotNull(stateQueue1.poll(5, TimeUnit.SECONDS), "Deveria receber state após place-ship p1");
         }
 
         for (int i = 0; i < ships.length; i++) {
@@ -181,35 +180,38 @@ public class GameWebSocketIntegrationTest {
                     "gameId", gameId, "shipType", ships[i][0],
                     "row", i, "col", 0, "orientation", ships[i][1]);
             session2.send("/app/game/place-ship", placeMsg2);
-            stateQueue2.poll(5, TimeUnit.SECONDS); // consumir state update
+            assertNotNull(stateQueue2.poll(5, TimeUnit.SECONDS), "Deveria receber state após place-ship p2");
         }
 
-        // Drenar mensagens restantes (state enviado ao outro jogador)
-        Thread.sleep(500);
+        // Aguardar o jogo iniciar — drenar mensagens restantes e verificar IN_PROGRESS
+        await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            // Drenar todas as mensagens e verificar a última
+            GameStateResponse latest = drainAndGetLast(stateQueue1);
+            if (latest == null) {
+                // Já drenou antes, tentar um tiro para forçar state
+                return;
+            }
+            assertEquals("IN_PROGRESS", latest.getPhase());
+        });
+
+        // Drenar filas antes de prosseguir
         stateQueue1.clear();
         stateQueue2.clear();
 
-        // Verificar que o jogo começou — buscar último state
-        // Fazer um tiro para receber o state atualizado e confirmar IN_PROGRESS
-        // Primeiro descobrir quem tem o turno — atirar com player1 e ver se funciona
+        // Fazer um tiro para confirmar que o jogo está IN_PROGRESS
         Map<String, Object> testShot = Map.of("gameId", gameId, "row", 9, "col", 9);
         session1.send("/app/game/shoot", testShot);
-        Thread.sleep(500);
 
-        // Pegar o último state disponível
-        GameStateResponse latestState = null;
-        GameStateResponse polled;
-        while ((polled = stateQueue1.poll(500, TimeUnit.MILLISECONDS)) != null) {
-            latestState = polled;
-        }
+        // Aguardar resposta de pelo menos um dos jogadores
+        await().atMost(3, TimeUnit.SECONDS).until(() ->
+                !stateQueue1.isEmpty() || !stateQueue2.isEmpty());
 
-        // Se player1 não tinha o turno, tenta com player2
+        GameStateResponse latestState = drainAndGetLast(stateQueue1);
         if (latestState == null) {
+            // Se player1 não tinha o turno, tenta com player2
             session2.send("/app/game/shoot", testShot);
-            Thread.sleep(500);
-            while ((polled = stateQueue2.poll(500, TimeUnit.MILLISECONDS)) != null) {
-                latestState = polled;
-            }
+            await().atMost(3, TimeUnit.SECONDS).until(() -> !stateQueue2.isEmpty());
+            latestState = drainAndGetLast(stateQueue2);
         }
 
         assertNotNull(latestState, "Deveria receber state após tiro");
@@ -223,7 +225,7 @@ public class GameWebSocketIntegrationTest {
     @Test
     @Order(2)
     void testSinglePlayerFlow() throws Exception {
-        String token = registerAndGetToken("solo_" + System.currentTimeMillis());
+        String token = registerAndGetToken("solo_" + UUID.randomUUID().toString().substring(0, 8));
         StompSession session = connectStomp(token);
         assertTrue(session.isConnected());
 
@@ -237,7 +239,8 @@ public class GameWebSocketIntegrationTest {
                 createdQueue.offer((Map) payload);
             }
         });
-        Thread.sleep(200);
+
+        await().atMost(2, TimeUnit.SECONDS).until(() -> session.isConnected());
 
         // Iniciar singleplayer
         session.send("/app/game/single-player", new byte[0]);
@@ -256,7 +259,6 @@ public class GameWebSocketIntegrationTest {
                 stateQueue.offer((GameStateResponse) payload);
             }
         });
-        Thread.sleep(500);
 
         // Posicionar navios
         String[][] ships = {
@@ -272,21 +274,18 @@ public class GameWebSocketIntegrationTest {
                     "gameId", gameId, "shipType", ships[i][0],
                     "row", i, "col", 0, "orientation", ships[i][1]);
             session.send("/app/game/place-ship", placeMsg);
-            Thread.sleep(200);
+            // Aguardar confirmação de cada posicionamento
+            assertNotNull(stateQueue.poll(5, TimeUnit.SECONDS),
+                    "Deveria receber state após posicionar navio " + ships[i][0]);
         }
 
-        // Aguardar o jogo começar (estado IN_PROGRESS)
-        Thread.sleep(1000);
-        GameStateResponse latestState = null;
-        GameStateResponse polled;
-        while ((polled = stateQueue.poll(500, TimeUnit.MILLISECONDS)) != null) {
-            latestState = polled;
-        }
-
-        assertNotNull(latestState, "Deveria receber game state após posicionar navios");
-        // O jogo pode já estar IN_PROGRESS ou o bot pode já ter jogado
-        assertTrue(latestState.getPhase().equals("IN_PROGRESS") || latestState.getPhase().equals("FINISHED"),
-                "Fase deveria ser IN_PROGRESS ou FINISHED, mas foi: " + latestState.getPhase());
+        // Aguardar o jogo começar (estado IN_PROGRESS ou FINISHED se o bot jogou muito rápido)
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            GameStateResponse latest = drainAndGetLast(stateQueue);
+            assertNotNull(latest, "Deveria receber game state");
+            assertTrue(latest.getPhase().equals("IN_PROGRESS") || latest.getPhase().equals("FINISHED"),
+                    "Fase deveria ser IN_PROGRESS ou FINISHED, mas foi: " + latest.getPhase());
+        });
 
         session.disconnect();
     }
@@ -294,7 +293,7 @@ public class GameWebSocketIntegrationTest {
     @Test
     @Order(3)
     void testJoinNonexistentRoom() throws Exception {
-        String token = registerAndGetToken("error_" + System.currentTimeMillis());
+        String token = registerAndGetToken("error_" + UUID.randomUUID().toString().substring(0, 8));
         StompSession session = connectStomp(token);
 
         BlockingQueue<Map> errorQueue = new LinkedBlockingQueue<>();
@@ -306,7 +305,8 @@ public class GameWebSocketIntegrationTest {
                 errorQueue.offer((Map) payload);
             }
         });
-        Thread.sleep(200);
+
+        await().atMost(2, TimeUnit.SECONDS).until(() -> session.isConnected());
 
         session.send("/app/game/join", Map.of("gameId", "ZZZZ"));
         Map error = errorQueue.poll(5, TimeUnit.SECONDS);
@@ -319,8 +319,8 @@ public class GameWebSocketIntegrationTest {
     @Test
     @Order(4)
     void testSurrenderFlow() throws Exception {
-        String t1 = registerAndGetToken("surr1_" + System.currentTimeMillis());
-        String t2 = registerAndGetToken("surr2_" + System.currentTimeMillis());
+        String t1 = registerAndGetToken("surr1_" + UUID.randomUUID().toString().substring(0, 8));
+        String t2 = registerAndGetToken("surr2_" + UUID.randomUUID().toString().substring(0, 8));
 
         StompSession s1 = connectStomp(t1);
         StompSession s2 = connectStomp(t2);
@@ -333,7 +333,8 @@ public class GameWebSocketIntegrationTest {
             @Override
             public void handleFrame(StompHeaders headers, Object payload) { createdQueue.offer((Map) payload); }
         });
-        Thread.sleep(200);
+
+        await().atMost(2, TimeUnit.SECONDS).until(() -> s1.isConnected());
 
         s1.send("/app/game/create", new byte[0]);
         Map created = createdQueue.poll(5, TimeUnit.SECONDS);
@@ -353,26 +354,36 @@ public class GameWebSocketIntegrationTest {
             @Override
             public void handleFrame(StompHeaders headers, Object payload) { stateQueue2.offer((GameStateResponse) payload); }
         });
-        Thread.sleep(200);
 
         s2.send("/app/game/join", Map.of("gameId", gameId));
-        stateQueue1.poll(5, TimeUnit.SECONDS);
-        stateQueue2.poll(5, TimeUnit.SECONDS);
+
+        // Aguardar ambos receberem o state de PLACING_SHIPS
+        assertNotNull(stateQueue1.poll(5, TimeUnit.SECONDS), "P1 deveria receber state após join");
+        assertNotNull(stateQueue2.poll(5, TimeUnit.SECONDS), "P2 deveria receber state após join");
 
         // Player1 desiste
         s1.send("/app/game/surrender", Map.of("gameId", gameId));
-        Thread.sleep(500);
 
-        GameStateResponse finalState = null;
-        GameStateResponse polled;
-        while ((polled = stateQueue2.poll(500, TimeUnit.MILLISECONDS)) != null) {
-            finalState = polled;
-        }
-
-        assertNotNull(finalState, "Player2 deveria receber state de FINISHED após surrender");
-        assertEquals("FINISHED", finalState.getPhase());
+        // Aguardar Player2 receber o state FINISHED
+        await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            GameStateResponse finalState = drainAndGetLast(stateQueue2);
+            assertNotNull(finalState, "Player2 deveria receber state de FINISHED após surrender");
+            assertEquals("FINISHED", finalState.getPhase());
+        });
 
         s1.disconnect();
         s2.disconnect();
+    }
+
+    /**
+     * Drena uma BlockingQueue e retorna o último elemento, ou null se vazia.
+     */
+    private <T> T drainAndGetLast(BlockingQueue<T> queue) {
+        T last = null;
+        T item;
+        while ((item = queue.poll()) != null) {
+            last = item;
+        }
+        return last;
     }
 }

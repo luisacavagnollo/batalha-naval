@@ -156,7 +156,7 @@ public class GameController {
             sendGameStateToPlayers(game);
 
             // Se é singleplayer e o jogo acabou de iniciar com turno do bot
-            if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
+            if (singlePlayerGames.contains(game.getId()) && botService.isBotTurn(game)) {
                 scheduleBotTurn(game);
             }
         } catch (IllegalArgumentException e) {
@@ -190,7 +190,7 @@ public class GameController {
             sendGameStateToPlayers(game);
 
             // Se é singleplayer e agora é o turno do bot, o bot responde
-            if (singlePlayerGames.contains(game.getId()) && isBotTurn(game)) {
+            if (singlePlayerGames.contains(game.getId()) && botService.isBotTurn(game)) {
                 scheduleBotTurn(game);
             }
         } catch (Exception e) {
@@ -319,11 +319,6 @@ public class GameController {
         }
     }
 
-    private boolean isBotTurn(Game game) {
-        return game.getPhase() == GamePhase.IN_PROGRESS
-                && BotService.BOT_ID.equals(game.getCurrentTurnPlayerId());
-    }
-
     /**
      * Chamado pelo scheduler para limpar IDs órfãos de jogos já removidos.
      */
@@ -338,58 +333,15 @@ public class GameController {
         scheduler.schedule(() -> executeBotTurn(game), 1, TimeUnit.SECONDS);
     }
 
-    private static final int MAX_BOT_RETRIES = 100;
-    private static final int MAX_CONSECUTIVE_TURNS = 50;
-
     private void executeBotTurn(Game game) {
-        // Guard: impede execução paralela para o mesmo jogo
         if (!botTurnInProgress.add(game.getId())) {
-            return; // Já há um turno em execução para este jogo
+            return;
         }
 
         try {
-            int consecutiveTurns = 0;
-
-            // Loop para turnos consecutivos (bot acertou) ao invés de recursão via scheduler
-            while (isBotTurn(game) && consecutiveTurns < MAX_CONSECUTIVE_TURNS) {
-                ShotOutcome outcome = null;
-                int attempts = 0;
-
-                while (outcome == null && attempts < MAX_BOT_RETRIES) {
-                    int[] shot = botService.chooseShot(game.getId());
-                    if (shot == null) return;
-
-                    outcome = game.shoot(BotService.BOT_ID, shot[0], shot[1]);
-                    if (outcome != null) {
-                        if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
-                            botService.registerHit(game.getId(), shot[0], shot[1]);
-                        }
-                        if (outcome.getResult() == ShotResult.SUNK) {
-                            botService.registerSunk(game.getId(), shot[0], shot[1]);
-                        }
-                    }
-                    attempts++;
-                }
-
-                if (outcome == null) {
-                    return; // Bot não conseguiu encontrar célula válida
-                }
-
-                sendGameStateToPlayers(game);
-
-                // Se o jogo acabou, limpa e sai
-                if (game.getPhase() == GamePhase.FINISHED) {
-                    botService.cleanup(game.getId());
-                    singlePlayerGames.remove(game.getId());
-                    return;
-                }
-
-                consecutiveTurns++;
-
-                // Pequena pausa entre turnos consecutivos para o frontend processar
-                if (isBotTurn(game)) {
-                    try { Thread.sleep(800); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
-                }
+            boolean finished = botService.executeTurn(game, () -> sendGameStateToPlayers(game));
+            if (finished) {
+                singlePlayerGames.remove(game.getId());
             }
         } finally {
             botTurnInProgress.remove(game.getId());

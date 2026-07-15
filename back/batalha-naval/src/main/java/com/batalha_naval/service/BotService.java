@@ -82,6 +82,71 @@ public class BotService {
         hits.removeIf(h -> sunkCells.contains(h[0] + "," + h[1]));
     }
 
+    private static final int MAX_BOT_RETRIES = 100;
+    private static final int MAX_CONSECUTIVE_TURNS = 50;
+
+    /**
+     * Executa o turno do bot (e turnos consecutivos caso acerte).
+     * Retorna true se o jogo terminou durante a execução.
+     * 
+     * @param game o jogo atual
+     * @param onStateUpdate callback executado após cada tiro para enviar o estado atualizado
+     */
+    public boolean executeTurn(Game game, Runnable onStateUpdate) {
+        int consecutiveTurns = 0;
+
+        while (isBotTurn(game) && consecutiveTurns < MAX_CONSECUTIVE_TURNS) {
+            ShotOutcome outcome = null;
+            int attempts = 0;
+
+            while (outcome == null && attempts < MAX_BOT_RETRIES) {
+                int[] shot = chooseShot(game.getId());
+                if (shot == null) return false;
+
+                outcome = game.shoot(BOT_ID, shot[0], shot[1]);
+                if (outcome != null) {
+                    if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
+                        registerHit(game.getId(), shot[0], shot[1]);
+                    }
+                    if (outcome.getResult() == ShotResult.SUNK) {
+                        registerSunk(game.getId(), shot[0], shot[1]);
+                    }
+                }
+                attempts++;
+            }
+
+            if (outcome == null) {
+                return false;
+            }
+
+            onStateUpdate.run();
+
+            if (game.getPhase() == GamePhase.FINISHED) {
+                cleanup(game.getId());
+                return true;
+            }
+
+            consecutiveTurns++;
+
+            if (isBotTurn(game)) {
+                try { Thread.sleep(800); } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica se é o turno do bot no jogo.
+     */
+    public boolean isBotTurn(Game game) {
+        return game.getPhase() == GamePhase.IN_PROGRESS
+                && BOT_ID.equals(game.getCurrentTurnPlayerId());
+    }
+
     public void cleanup(String gameId) {
         shotHistory.remove(gameId);
         activeHits.remove(gameId);
