@@ -466,8 +466,9 @@ export default function Game() {
   useEffect(() => {
     connect().then(() => {
       subscribeToGame(gameId);
-      // Solicitar estado atual do jogo (necessário após page reload / reconexão)
-      requestGameState(gameId);
+      // Delay para garantir que a subscription STOMP foi processada pelo servidor
+      // antes de solicitar o estado (evita race condition subscribe vs send)
+      setTimeout(() => requestGameState(gameId), 300);
     });
     startMusic('/sounds/battle.mp3', 0.55);
     return () => { stopMusic(); if (gameOverTimerRef.current) clearTimeout(gameOverTimerRef.current); };

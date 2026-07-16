@@ -127,8 +127,13 @@ public class GameController {
             messaging.convertAndSendToUser(playerId, dest, buildResponse(game, playerId));
 
             // Se é singleplayer e é turno do bot, reativar o bot (pode ter parado após reconexão)
-            if (singlePlayerGames.contains(game.getId()) && botService.isBotTurn(game)) {
-                scheduleBotTurn(game);
+            boolean isSinglePlayer = BotService.BOT_ID.equals(game.getPlayer2Id());
+            if (isSinglePlayer) {
+                // Garantir que o jogo está registrado como singleplayer
+                singlePlayerGames.add(game.getId());
+                if (botService.isBotTurn(game)) {
+                    scheduleBotTurn(game);
+                }
             }
         } catch (GameNotFoundException e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",

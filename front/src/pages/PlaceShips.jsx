@@ -93,7 +93,7 @@ export default function PlaceShips() {
   useEffect(() => {
     connect().then(() => {
       subscribeToGame(gameId);
-      requestGameState(gameId);
+      setTimeout(() => requestGameState(gameId), 300);
     });
   }, [connect, subscribeToGame, requestGameState, gameId]);
 
