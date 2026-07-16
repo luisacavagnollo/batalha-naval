@@ -125,6 +125,11 @@ public class GameController {
             }
             String dest = "/topic/game/" + game.getId();
             messaging.convertAndSendToUser(playerId, dest, buildResponse(game, playerId));
+
+            // Se é singleplayer e é turno do bot, reativar o bot (pode ter parado após reconexão)
+            if (singlePlayerGames.contains(game.getId()) && botService.isBotTurn(game)) {
+                scheduleBotTurn(game);
+            }
         } catch (GameNotFoundException e) {
             messaging.convertAndSendToUser(playerId, "/topic/game/error",
                     Map.of("message", "Partida não encontrada ou já encerrada"));
