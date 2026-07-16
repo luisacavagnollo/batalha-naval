@@ -326,7 +326,7 @@ function toggleMuteInternal() {
   notifyListeners();
 }
 
-// --- Preload all sound effects on first user interaction ---
+// --- Preload all sound effects after first user interaction ---
 let preloaded = false;
 const SOUND_EFFECTS = ['click', 'splash', 'explosion', 'sunk'];
 
@@ -336,6 +336,22 @@ function preloadSounds() {
   SOUND_EFFECTS.forEach(name => {
     loadAudioBuffer(`/sounds/${name}.mp3`);
   });
+}
+
+// Registra listener global de interação para disparar preload
+let interactionListenerAdded = false;
+function setupPreloadOnInteraction() {
+  if (interactionListenerAdded) return;
+  interactionListenerAdded = true;
+  const trigger = () => {
+    preloadSounds();
+    document.removeEventListener('click', trigger);
+    document.removeEventListener('keydown', trigger);
+    document.removeEventListener('touchstart', trigger);
+  };
+  document.addEventListener('click', trigger, { once: true });
+  document.addEventListener('keydown', trigger, { once: true });
+  document.addEventListener('touchstart', trigger, { once: true });
 }
 
 // --- Hook ---
@@ -352,8 +368,8 @@ export function useSound() {
       setMuted(currentMuted);
     };
     listeners.add(handler);
-    // Pré-carregar sons na primeira montagem
-    preloadSounds();
+    // Registrar preload para disparar na primeira interação do usuário
+    setupPreloadOnInteraction();
     return () => listeners.delete(handler);
   }, []);
 
