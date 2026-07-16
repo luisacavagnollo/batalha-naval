@@ -471,16 +471,31 @@ export default function Game() {
     }
   }, [error, resetGame, navigate]);
 
+  // Timeout: se gameState não chegar em 5s após mount, redirecionar ao lobby
   useEffect(() => {
+    if (gameState) return; // Já recebeu, cancelar timeout
+    const timeout = setTimeout(() => {
+      if (!gameState) {
+        resetGame();
+        navigate('/lobby');
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [gameState, resetGame, navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
     connect().then(() => {
+      if (cancelled) return;
       subscribeToGame(gameId);
-      // Delay para garantir que a subscription STOMP foi processada pelo servidor
-      // antes de solicitar o estado (evita race condition subscribe vs send)
-      setTimeout(() => requestGameState(gameId), 300);
+      setTimeout(() => {
+        if (!cancelled) requestGameState(gameId);
+      }, 300);
     });
     startMusic('/sounds/battle.mp3', 0.55);
-    return () => { stopMusic(); if (gameOverTimerRef.current) clearTimeout(gameOverTimerRef.current); };
-  }, [connect, subscribeToGame, requestGameState, gameId, startMusic, stopMusic]);
+    return () => { cancelled = true; stopMusic(); if (gameOverTimerRef.current) clearTimeout(gameOverTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId]);
 
   useEffect(() => {
     if (!gameState || !prevGameStateRef.current) { prevGameStateRef.current = gameState; return; }

@@ -91,11 +91,17 @@ export default function PlaceShips() {
   const allPlaced = placed.length === SHIPS.length;
 
   useEffect(() => {
+    let cancelled = false;
     connect().then(() => {
+      if (cancelled) return;
       subscribeToGame(gameId);
-      setTimeout(() => requestGameState(gameId), 300);
+      setTimeout(() => {
+        if (!cancelled) requestGameState(gameId);
+      }, 300);
     });
-  }, [connect, subscribeToGame, requestGameState, gameId]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId]);
 
   // Redirecionar ao lobby se o jogo não existir mais
   useEffect(() => {
@@ -104,6 +110,17 @@ export default function PlaceShips() {
       navigate('/lobby');
     }
   }, [error, resetGame, navigate]);
+
+  // Timeout: se gameState não chegar em 5s, redirecionar ao lobby
+  useEffect(() => {
+    if (gameState) return;
+    const timeout = setTimeout(() => {
+      resetGame();
+      navigate('/lobby');
+    }, 5000);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]);
 
   // Manter música do lobby na tela de posicionamento
   useEffect(() => {
