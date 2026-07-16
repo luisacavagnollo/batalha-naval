@@ -534,6 +534,21 @@ export default function Game() {
   const mySkinShips = SKINS[mySkin] || SKINS['padrao_antigo'];
   const opponentSkinShips = SKINS[opponentSkin] || SKINS['padrao_antigo'];
 
+  // Não renderizar boards enquanto gameState não chegou (evita flash de skin padrão)
+  if (!gameState) {
+    return (
+      <PirateBackground variant="battle">
+        <div className="min-h-screen flex items-center justify-center">
+          <UIPanel variant="default" size="sm">
+            <p className="text-[#C6AE78] text-center font-['Cinzel',_serif] animate-pulse">
+              Reconectando à partida...
+            </p>
+          </UIPanel>
+        </div>
+      </PirateBackground>
+    );
+  }
+
   const myShipsStatus = gameState?.myShips
     ? mySkinShips.map(s => {
         const serverShip = gameState.myShips.find(ss => ss.type === s.type);
