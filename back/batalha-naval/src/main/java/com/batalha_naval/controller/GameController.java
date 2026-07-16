@@ -109,6 +109,21 @@ public class GameController {
     }
 
     /**
+     * Busca se o jogador tem uma partida ativa e envia o gameId para reconexão.
+     * Chamado pelo frontend ao carregar o lobby após um page reload.
+     */
+    @MessageMapping("/game/reconnect")
+    public void reconnect(Principal principal) {
+        if (principal == null) return;
+        String playerId = principal.getName();
+        Game game = gameService.findActiveGame(playerId);
+        if (game != null) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/created",
+                    Map.of("gameId", game.getId(), "reconnect", true));
+        }
+    }
+
+    /**
      * Re-envia o estado atual do jogo para o jogador que solicitou.
      * Usado após reconexão (page reload, perda de conexão) para sincronizar o frontend.
      */
@@ -125,6 +140,14 @@ public class GameController {
             }
             String dest = "/topic/game/" + game.getId();
             messaging.convertAndSendToUser(playerId, dest, buildResponse(game, playerId));
+
+            // Notificar oponente que o jogador reconectou (multiplayer)
+            String opponentId = game.getOpponentId(playerId);
+            if (opponentId != null && !BotService.BOT_ID.equals(opponentId)) {
+                messaging.convertAndSendToUser(opponentId,
+                        "/topic/game/" + game.getId() + "/opponent-status",
+                        Map.of("status", "reconnected", "player", playerId));
+            }
 
             // Se é singleplayer e é turno do bot, reativar o bot (pode ter parado após reconexão)
             boolean isSinglePlayer = BotService.BOT_ID.equals(game.getPlayer2Id());

@@ -16,6 +16,8 @@ const initialState = {
   rematchRequested: false,     // oponente pediu rematch
   connectionStatus: 'disconnected', // 'connected' | 'disconnected' | 'reconnecting'
   reconnectInfo: null,
+  opponentStatus: null,        // 'disconnected' | 'reconnected' | null
+  reconnectGameId: null,       // gameId de partida ativa encontrada ao reconectar
 };
 
 function gameReducer(state, action) {
@@ -40,6 +42,10 @@ function gameReducer(state, action) {
       return { ...state, connectionStatus: action.payload };
     case 'SET_RECONNECT_INFO':
       return { ...state, reconnectInfo: action.payload };
+    case 'SET_OPPONENT_STATUS':
+      return { ...state, opponentStatus: action.payload };
+    case 'SET_RECONNECT_GAME':
+      return { ...state, reconnectGameId: action.payload };
     case 'RESET_REMATCH':
       return {
         ...state,
@@ -57,6 +63,7 @@ function gameReducer(state, action) {
         rematchGameId: null,
         rematchPending: false,
         rematchRequested: false,
+        opponentStatus: null,
       };
     default:
       return state;
@@ -158,7 +165,10 @@ export function GameProvider({ children }) {
 
     const sub1 = client.subscribe('/user/topic/game/created', (msg) => {
       const data = JSON.parse(msg.body);
-      if (data.rematch) {
+      if (data.reconnect) {
+        subscribeToGame(data.gameId);
+        dispatch({ type: 'SET_RECONNECT_GAME', payload: data.gameId });
+      } else if (data.rematch) {
         subscribeToGame(data.gameId);
         dispatch({ type: 'SET_REMATCH_GAME_ID', payload: data.gameId });
       } else if (data.singlePlayer) {
@@ -369,6 +379,11 @@ export function GameProvider({ children }) {
       dispatch({ type: 'SET_REMATCH_PENDING', payload: true });
     }));
 
+    subs.push(clientRef.current.subscribe(`/user/topic/game/${gameId}/opponent-status`, (msg) => {
+      const data = JSON.parse(msg.body);
+      dispatch({ type: 'SET_OPPONENT_STATUS', payload: data.status });
+    }));
+
     // Armazena referências das subscriptions para cleanup posterior
     gameSubscriptionsRef.current.set(gameId, subs);
   }, [handleEmoteReceived]);
@@ -452,6 +467,13 @@ export function GameProvider({ children }) {
     });
   }, []);
 
+  const checkReconnect = useCallback(() => {
+    clientRef.current?.publish({
+      destination: '/app/game/reconnect',
+      body: '{}',
+    });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -463,11 +485,11 @@ export function GameProvider({ children }) {
   const actions = useMemo(() => ({
     connect, disconnect, resetGame, resetRematch, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
-    shoot, sendEmote, requestRematch, surrender, leaveGame, requestGameState,
+    shoot, sendEmote, requestRematch, surrender, leaveGame, requestGameState, checkReconnect,
     joinMatchmaking, leaveMatchmaking,
   }), [connect, disconnect, resetGame, resetRematch, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
-    shoot, sendEmote, requestRematch, surrender, leaveGame, requestGameState,
+    shoot, sendEmote, requestRematch, surrender, leaveGame, requestGameState, checkReconnect,
     joinMatchmaking, leaveMatchmaking]);
 
   const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
@@ -508,6 +530,8 @@ export function useGame(token) {
     rematchRequested: state.rematchRequested,
     connectionStatus: state.connectionStatus,
     reconnectInfo: state.reconnectInfo,
+    opponentStatus: state.opponentStatus,
+    reconnectGameId: state.reconnectGameId,
     // Actions
     connect,
     disconnect: actions.disconnect,
@@ -525,6 +549,7 @@ export function useGame(token) {
     surrender: actions.surrender,
     leaveGame: actions.leaveGame,
     requestGameState: actions.requestGameState,
+    checkReconnect: actions.checkReconnect,
     joinMatchmaking: actions.joinMatchmaking,
     leaveMatchmaking: actions.leaveMatchmaking,
   };

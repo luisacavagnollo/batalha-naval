@@ -182,7 +182,6 @@ describe('Lobby page', () => {
 
     await user.click(screen.getByText('Entrar'));
 
-    expect(mockConnect).not.toHaveBeenCalled();
     expect(mockJoinRoom).not.toHaveBeenCalled();
   });
 

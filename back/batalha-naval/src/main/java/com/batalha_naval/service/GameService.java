@@ -58,15 +58,13 @@ public class GameService {
         if ("BOT".equals(game.getPlayer2Id())) {
             throw new GameNotFoundException(code);
         }
+        // Se o jogador já faz parte da partida, permite "rejoin" (reconexão)
+        if (playerId.equals(game.getPlayer1Id()) || playerId.equals(game.getPlayer2Id())) {
+            game.touchActivity();
+            return game;
+        }
         if (game.getPlayer2Id() != null) {
             throw new GameFullException(code);
-        }
-        // Se o criador tenta entrar na própria sala, significa que ele cancelou
-        // mas o leave ainda não foi processado. Remover a sala e informar que não existe.
-        if (playerId.equals(game.getPlayer1Id())) {
-            games.remove(code.toUpperCase());
-            codeToGameId.remove(code.toUpperCase());
-            throw new GameNotFoundException(code);
         }
         game.setPlayer2Id(playerId);
         game.setPlayer2Skin(getPlayerSkin(playerId));
@@ -80,6 +78,21 @@ public class GameService {
             throw new GameNotFoundException(gameId);
         }
         return game;
+    }
+
+    /**
+     * Busca uma partida ativa (PLACING_SHIPS ou IN_PROGRESS) que o jogador faz parte.
+     * Usado para reconexão automática após page reload.
+     * @return o Game ativo ou null se não houver
+     */
+    public Game findActiveGame(String playerId) {
+        for (Game game : games.values()) {
+            if (game.getPhase() == GamePhase.FINISHED) continue;
+            if (playerId.equals(game.getPlayer1Id()) || playerId.equals(game.getPlayer2Id())) {
+                return game;
+            }
+        }
+        return null;
     }
 
     public boolean placeShip(String gameId, String playerId, ShipType type, int row, int col, Orientation orientation) {

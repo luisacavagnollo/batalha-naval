@@ -440,7 +440,7 @@ export default function Game() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
-  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, requestGameState, error, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, requestGameState, error, opponentStatus, connectionStatus, reconnectInfo } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const [sunkOpponentShips, setSunkOpponentShips] = useState([]);
   const [sunkOpponentCells, setSunkOpponentCells] = useState(new Set());
@@ -471,7 +471,7 @@ export default function Game() {
     }
   }, [error, resetGame, navigate]);
 
-  // Timeout: se gameState não chegar em 5s após mount, redirecionar ao lobby
+  // Timeout: se gameState não chegar em 15s após mount, redirecionar ao lobby
   useEffect(() => {
     if (gameState) return; // Já recebeu, cancelar timeout
     const timeout = setTimeout(() => {
@@ -479,7 +479,7 @@ export default function Game() {
         resetGame();
         navigate('/lobby');
       }
-    }, 5000);
+    }, 15000);
     return () => clearTimeout(timeout);
   }, [gameState, resetGame, navigate]);
 
@@ -608,6 +608,17 @@ export default function Game() {
         </header>
 
         <TurnIndicator gameFinished={gameFinished} gameState={gameState} username={username} />
+
+        {/* Notificação de oponente desconectado */}
+        {opponentStatus === 'disconnected' && !gameFinished && (
+          <div className="w-full flex justify-center mb-2">
+            <div className="px-4 py-2 rounded bg-[#8B2A1E]/20 border border-[#C84A3A]/40 animate-pulse">
+              <p className="text-[#C84A3A] text-xs font-bold text-center font-['Cinzel',_serif]">
+                ⚠️ Oponente desconectou — aguardando reconexão...
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Boards */}
         <div className="flex-1 flex items-center justify-center px-2 sm:px-4 pb-4 sm:pb-8 overflow-hidden">

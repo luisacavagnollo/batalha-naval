@@ -21,7 +21,7 @@ export default function Lobby() {
   const [showProfile, setShowProfile] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const dropdownRef = useRef(null);
-  const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame, leaveGame, connectionStatus, reconnectInfo, joinMatchmaking, leaveMatchmaking } = useGame(token);
+  const { connect, connected, createRoom, startSinglePlayer, joinRoom, roomCode, gameState, error, subscribeToGame, resetGame, leaveGame, connectionStatus, reconnectInfo, joinMatchmaking, leaveMatchmaking, checkReconnect, reconnectGameId } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const navigate = useNavigate();
   const [searching, setSearching] = useState(false);
@@ -38,7 +38,12 @@ export default function Lobby() {
       }
       if (data) setMoedas(data.moedas);
     });
-  }, [resetGame, token]);
+    // Verificar se tem partida ativa para reconectar
+    connect().then(() => {
+      checkReconnect();
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Música de fundo do lobby
   useEffect(() => {
@@ -69,6 +74,13 @@ export default function Lobby() {
       navigate(`/place-ships/${gameState.gameId}`);
     }
   }, [gameState, navigate]);
+
+  // Reconectar à partida ativa encontrada pelo servidor
+  useEffect(() => {
+    if (reconnectGameId) {
+      navigate(`/game/${reconnectGameId}`);
+    }
+  }, [reconnectGameId, navigate]);
 
   useEffect(() => {
     if (roomCode) {
@@ -277,7 +289,7 @@ export default function Lobby() {
                         <label className="block text-[#C6AE78] text-xs font-bold tracking-wider uppercase mb-2 font-['Cinzel',_serif]">
                           Entrar em sala existente
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                           <input
                             type="text"
                             value={code}
@@ -286,7 +298,7 @@ export default function Lobby() {
                             maxLength={4}
                             className="input-parchment flex-1 px-4 py-3 text-center font-mono text-lg tracking-widest uppercase"
                           />
-                          <PirateButton onClick={handleJoin} variant="gold" size="md">
+                          <PirateButton onClick={handleJoin} variant="gold" size="md" className="flex-shrink-0">
                             Entrar
                           </PirateButton>
                         </div>

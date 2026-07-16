@@ -61,9 +61,11 @@ class GameServiceTest {
     }
 
     @Test
-    void joinGame_samePlayer_throws() {
+    void joinGame_samePlayer_allowsRejoin() {
         Game game = gameService.createGame("player1");
-        assertThrows(GameNotFoundException.class, () -> gameService.joinGame(game.getId(), "player1"));
+        Game rejoined = gameService.joinGame(game.getId(), "player1");
+        assertEquals(game.getId(), rejoined.getId());
+        assertEquals("player1", rejoined.getPlayer1Id());
     }
 
     @Test
