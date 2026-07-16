@@ -18,8 +18,9 @@ function savePreferences(prefs) {
 let audioContext = null;
 let musicSource = null;
 let musicGainNode = null;
-let cachedBuffers = {};
-let pendingLoads = {};
+let cachedBuffers = {};      // url -> AudioBuffer (decoded)
+let cachedRawData = {};      // url -> ArrayBuffer (raw, pre-decode)
+let pendingFetches = {};     // url -> Promise<ArrayBuffer> (in-flight)
 let currentMuted = loadPreferences().muted;
 let currentVolume = loadPreferences().volume;
 let currentMusicVolume = loadPreferences().musicVolume;
@@ -46,27 +47,51 @@ function updateMusicGain() {
   }
 }
 
-async function loadAudioBuffer(url) {
-  if (cachedBuffers[url]) return cachedBuffers[url];
-  if (pendingLoads[url]) return pendingLoads[url];
+/**
+ * Busca o ArrayBuffer bruto de uma URL (faz fetch no máximo 1 vez por URL).
+ */
+async function fetchRawAudio(url) {
+  if (cachedRawData[url]) return cachedRawData[url];
+  if (pendingFetches[url]) return pendingFetches[url];
 
-  pendingLoads[url] = (async () => {
+  pendingFetches[url] = (async () => {
     try {
-      const ctx = getAudioContext();
       const response = await fetch(url);
       if (!response.ok) return null;
       const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      cachedBuffers[url] = audioBuffer;
-      return audioBuffer;
+      cachedRawData[url] = arrayBuffer;
+      return arrayBuffer;
     } catch (e) {
       return null;
     } finally {
-      delete pendingLoads[url];
+      delete pendingFetches[url];
     }
   })();
 
-  return pendingLoads[url];
+  return pendingFetches[url];
+}
+
+/**
+ * Retorna um AudioBuffer decodificado. Usa cache decoded se disponível,
+ * caso contrário decodifica a partir do raw data cacheado.
+ * Nunca faz fetch mais de uma vez por URL.
+ */
+async function loadAudioBuffer(url) {
+  if (cachedBuffers[url]) return cachedBuffers[url];
+
+  const rawData = await fetchRawAudio(url);
+  if (!rawData) return null;
+
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') return null; // Não decodifica se context está bloqueado
+    // decodeAudioData consome o ArrayBuffer, precisamos clonar
+    const audioBuffer = await ctx.decodeAudioData(rawData.slice(0));
+    cachedBuffers[url] = audioBuffer;
+    return audioBuffer;
+  } catch (e) {
+    return null;
+  }
 }
 
 function playSynthetic(soundName) {
@@ -342,8 +367,9 @@ const SOUND_EFFECTS = ['click', 'splash', 'explosion', 'sunk'];
 function preloadSounds() {
   if (preloaded) return;
   preloaded = true;
+  // Pré-buscar raw data (não precisa de AudioContext, só faz fetch)
   SOUND_EFFECTS.forEach(name => {
-    loadAudioBuffer(`/sounds/${name}.mp3`);
+    fetchRawAudio(`/sounds/${name}.mp3`);
   });
   // Se havia música pendente aguardando interação, iniciar agora
   if (pendingMusic) {
