@@ -254,7 +254,7 @@ export function GameProvider({ children }) {
           clientRef.current = null;
           reject(new Error('Connection timeout'));
         }
-      }, 10000);
+      }, 45000); // 45s para acomodar cold start do Render free tier
 
       const client = new Client({
         brokerURL: WS_URL,

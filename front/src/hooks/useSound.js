@@ -33,7 +33,8 @@ function getAudioContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
-  if (audioContext.state === 'suspended') {
+  // Só tenta resume se já houve interação do usuário (evita warning do browser)
+  if (audioContext.state === 'suspended' && preloaded) {
     audioContext.resume();
   }
   return audioContext;
@@ -240,8 +241,16 @@ async function playSound(soundName) {
   source.start(0);
 }
 
+let pendingMusic = null; // Guarda args da música pendente para tocar após interação
+
 function startMusicInternal(url = '/sounds/ambient.mp3', volumeMultiplier = 0.35) {
   if (musicSource) return; // Já tocando
+
+  // Se não houve interação do usuário ainda, agendar para depois
+  if (!preloaded) {
+    pendingMusic = { url, volumeMultiplier };
+    return;
+  }
 
   const ctx = getAudioContext();
 
@@ -336,6 +345,12 @@ function preloadSounds() {
   SOUND_EFFECTS.forEach(name => {
     loadAudioBuffer(`/sounds/${name}.mp3`);
   });
+  // Se havia música pendente aguardando interação, iniciar agora
+  if (pendingMusic) {
+    const { url, volumeMultiplier } = pendingMusic;
+    pendingMusic = null;
+    startMusicInternal(url, volumeMultiplier);
+  }
 }
 
 // Registra listener global de interação para disparar preload
