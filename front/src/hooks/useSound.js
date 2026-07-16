@@ -19,6 +19,7 @@ let audioContext = null;
 let musicSource = null;
 let musicGainNode = null;
 let cachedBuffers = {};
+let pendingLoads = {};
 let currentMuted = loadPreferences().muted;
 let currentVolume = loadPreferences().volume;
 let currentMusicVolume = loadPreferences().musicVolume;
@@ -46,17 +47,25 @@ function updateMusicGain() {
 
 async function loadAudioBuffer(url) {
   if (cachedBuffers[url]) return cachedBuffers[url];
-  try {
-    const ctx = getAudioContext();
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    cachedBuffers[url] = audioBuffer;
-    return audioBuffer;
-  } catch (e) {
-    return null;
-  }
+  if (pendingLoads[url]) return pendingLoads[url];
+
+  pendingLoads[url] = (async () => {
+    try {
+      const ctx = getAudioContext();
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      cachedBuffers[url] = audioBuffer;
+      return audioBuffer;
+    } catch (e) {
+      return null;
+    } finally {
+      delete pendingLoads[url];
+    }
+  })();
+
+  return pendingLoads[url];
 }
 
 function playSynthetic(soundName) {
