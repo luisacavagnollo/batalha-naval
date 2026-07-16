@@ -289,16 +289,16 @@ export default function Lobby() {
                         <label className="block text-[#C6AE78] text-xs font-bold tracking-wider uppercase mb-2 font-['Cinzel',_serif]">
                           Entrar em sala existente
                         </label>
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 items-stretch">
                           <input
                             type="text"
                             value={code}
                             onChange={e => setCode(e.target.value.toUpperCase())}
                             placeholder="ABCD"
                             maxLength={4}
-                            className="input-parchment flex-1 px-4 py-3 text-center font-mono text-lg tracking-widest uppercase"
+                            className="input-parchment w-32 px-3 py-3 text-center font-mono text-lg tracking-widest uppercase"
                           />
-                          <PirateButton onClick={handleJoin} variant="gold" size="md" className="flex-shrink-0">
+                          <PirateButton onClick={handleJoin} variant="gold" size="md">
                             Entrar
                           </PirateButton>
                         </div>
