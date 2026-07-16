@@ -440,7 +440,7 @@ export default function Game() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
-  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, requestGameState, connectionStatus, reconnectInfo } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const [sunkOpponentShips, setSunkOpponentShips] = useState([]);
   const [sunkOpponentCells, setSunkOpponentCells] = useState(new Set());
@@ -464,10 +464,14 @@ export default function Game() {
   }, [gameId]);
 
   useEffect(() => {
-    connect().then(() => subscribeToGame(gameId));
+    connect().then(() => {
+      subscribeToGame(gameId);
+      // Solicitar estado atual do jogo (necessário após page reload / reconexão)
+      requestGameState(gameId);
+    });
     startMusic('/sounds/battle.mp3', 0.55);
     return () => { stopMusic(); if (gameOverTimerRef.current) clearTimeout(gameOverTimerRef.current); };
-  }, [connect, subscribeToGame, gameId, startMusic, stopMusic]);
+  }, [connect, subscribeToGame, requestGameState, gameId, startMusic, stopMusic]);
 
   useEffect(() => {
     if (!gameState || !prevGameStateRef.current) { prevGameStateRef.current = gameState; return; }

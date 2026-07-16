@@ -444,6 +444,14 @@ export function GameProvider({ children }) {
     });
   }, []);
 
+  const requestGameState = useCallback((gameId) => {
+    if (!gameId) return;
+    clientRef.current?.publish({
+      destination: '/app/game/state',
+      body: JSON.stringify({ gameId }),
+    });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -455,11 +463,11 @@ export function GameProvider({ children }) {
   const actions = useMemo(() => ({
     connect, disconnect, resetGame, resetRematch, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
-    shoot, sendEmote, requestRematch, surrender, leaveGame,
+    shoot, sendEmote, requestRematch, surrender, leaveGame, requestGameState,
     joinMatchmaking, leaveMatchmaking,
   }), [connect, disconnect, resetGame, resetRematch, subscribeToGame, unsubscribeFromGame,
     createRoom, startSinglePlayer, joinRoom, placeShip,
-    shoot, sendEmote, requestRematch, surrender, leaveGame,
+    shoot, sendEmote, requestRematch, surrender, leaveGame, requestGameState,
     joinMatchmaking, leaveMatchmaking]);
 
   const contextValue = useMemo(() => ({ state, actions }), [state, actions]);
@@ -516,6 +524,7 @@ export function useGame(token) {
     requestRematch: actions.requestRematch,
     surrender: actions.surrender,
     leaveGame: actions.leaveGame,
+    requestGameState: actions.requestGameState,
     joinMatchmaking: actions.joinMatchmaking,
     leaveMatchmaking: actions.leaveMatchmaking,
   };

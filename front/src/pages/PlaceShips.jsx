@@ -74,7 +74,7 @@ export default function PlaceShips() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const navigate = useNavigate();
-  const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, leaveGame, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, leaveGame, requestGameState, connectionStatus, reconnectInfo } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const cellSize = useResponsiveCellSize({ maxCellSize: 40, boards: 1, horizontalPadding: 80 });
 
@@ -91,8 +91,11 @@ export default function PlaceShips() {
   const allPlaced = placed.length === SHIPS.length;
 
   useEffect(() => {
-    connect().then(() => subscribeToGame(gameId));
-  }, [connect, subscribeToGame, gameId]);
+    connect().then(() => {
+      subscribeToGame(gameId);
+      requestGameState(gameId);
+    });
+  }, [connect, subscribeToGame, requestGameState, gameId]);
 
   // Manter música do lobby na tela de posicionamento
   useEffect(() => {

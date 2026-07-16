@@ -108,6 +108,29 @@ public class GameController {
                 Map.of("gameId", game.getId()));
     }
 
+    /**
+     * Re-envia o estado atual do jogo para o jogador que solicitou.
+     * Usado após reconexão (page reload, perda de conexão) para sincronizar o frontend.
+     */
+    @MessageMapping("/game/state")
+    public void requestGameState(GameMessage msg, Principal principal) {
+        if (principal == null) return;
+        String playerId = principal.getName();
+        if (msg.getGameId() == null) return;
+        try {
+            Game game = gameService.getGame(msg.getGameId());
+            // Verificar se o jogador faz parte da partida
+            if (!playerId.equals(game.getPlayer1Id()) && !playerId.equals(game.getPlayer2Id())) {
+                return;
+            }
+            String dest = "/topic/game/" + game.getId();
+            messaging.convertAndSendToUser(playerId, dest, buildResponse(game, playerId));
+        } catch (GameNotFoundException e) {
+            messaging.convertAndSendToUser(playerId, "/topic/game/error",
+                    Map.of("message", "Partida não encontrada ou já encerrada"));
+        }
+    }
+
     @MessageMapping("/game/join")
     public void joinRoom(GameMessage msg, Principal principal) {
         if (principal == null) return;
