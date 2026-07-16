@@ -74,7 +74,7 @@ export default function PlaceShips() {
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
   const navigate = useNavigate();
-  const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, leaveGame, requestGameState, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, connected, subscribeToGame, placeShip, gameState, resetGame, surrender, leaveGame, requestGameState, error, connectionStatus, reconnectInfo } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const cellSize = useResponsiveCellSize({ maxCellSize: 40, boards: 1, horizontalPadding: 80 });
 
@@ -96,6 +96,14 @@ export default function PlaceShips() {
       setTimeout(() => requestGameState(gameId), 300);
     });
   }, [connect, subscribeToGame, requestGameState, gameId]);
+
+  // Redirecionar ao lobby se o jogo não existir mais
+  useEffect(() => {
+    if (error && error.includes('não encontrada')) {
+      resetGame();
+      navigate('/lobby');
+    }
+  }, [error, resetGame, navigate]);
 
   // Manter música do lobby na tela de posicionamento
   useEffect(() => {

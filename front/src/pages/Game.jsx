@@ -440,7 +440,7 @@ export default function Game() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const username = localStorage.getItem('username');
-  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, requestGameState, connectionStatus, reconnectInfo } = useGame(token);
+  const { connect, subscribeToGame, gameState, shoot, sendEmote, emote, resetGame, surrender, requestGameState, error, connectionStatus, reconnectInfo } = useGame(token);
   const { play, startMusic, stopMusic, toggleMute, muted } = useSound();
   const [sunkOpponentShips, setSunkOpponentShips] = useState([]);
   const [sunkOpponentCells, setSunkOpponentCells] = useState(new Set());
@@ -462,6 +462,14 @@ export default function Game() {
       gameOverTimerRef.current = null;
     }
   }, [gameId]);
+
+  // Redirecionar ao lobby se o jogo não existir mais (erro do servidor ou timeout)
+  useEffect(() => {
+    if (error && error.includes('não encontrada')) {
+      resetGame();
+      navigate('/lobby');
+    }
+  }, [error, resetGame, navigate]);
 
   useEffect(() => {
     connect().then(() => {
