@@ -298,7 +298,7 @@ export default function Lobby() {
                             maxLength={4}
                             className="input-parchment w-32 px-3 py-3 text-center font-mono text-lg tracking-widest uppercase"
                           />
-                          <PirateButton onClick={handleJoin} variant="gold" size="md">
+                          <PirateButton onClick={handleJoin} variant="gold" size="md" fullWidth>
                             Entrar
                           </PirateButton>
                         </div>
