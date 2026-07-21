@@ -83,60 +83,66 @@ public class BotService {
     }
 
     private static final int MAX_BOT_RETRIES = 100;
-    private static final int MAX_CONSECUTIVE_TURNS = 50;
 
     /**
-     * Executa o turno do bot (e turnos consecutivos caso acerte).
-     * Retorna true se o jogo terminou durante a execução.
-     * 
-     * @param game o jogo atual
-     * @param onStateUpdate callback executado após cada tiro para enviar o estado atualizado
+     * Resultado de um único tiro do bot.
      */
-    public boolean executeTurn(Game game, Runnable onStateUpdate) {
-        int consecutiveTurns = 0;
+    public enum TurnResult {
+        /** Bot errou — turno passou para o jogador. */
+        MISS,
+        /** Bot acertou — mantém o turno, deve ser re-agendado com delay. */
+        HIT,
+        /** Bot afundou todos os navios — jogo terminou. */
+        GAME_OVER,
+        /** Nenhum tiro válido encontrado. */
+        NO_SHOT
+    }
 
-        while (isBotTurn(game) && consecutiveTurns < MAX_CONSECUTIVE_TURNS) {
-            ShotOutcome outcome = null;
-            int attempts = 0;
-
-            while (outcome == null && attempts < MAX_BOT_RETRIES) {
-                int[] shot = chooseShot(game.getId());
-                if (shot == null) return false;
-
-                outcome = game.shoot(BOT_ID, shot[0], shot[1]);
-                if (outcome != null) {
-                    if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
-                        registerHit(game.getId(), shot[0], shot[1]);
-                    }
-                    if (outcome.getResult() == ShotResult.SUNK) {
-                        registerSunk(game.getId(), shot[0], shot[1]);
-                    }
-                }
-                attempts++;
-            }
-
-            if (outcome == null) {
-                return false;
-            }
-
-            onStateUpdate.run();
-
-            if (game.getPhase() == GamePhase.FINISHED) {
-                cleanup(game.getId());
-                return true;
-            }
-
-            consecutiveTurns++;
-
-            if (isBotTurn(game)) {
-                try { Thread.sleep(800); } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
-            }
+    /**
+     * Executa UM ÚNICO tiro do bot e atualiza o estado interno de hunt/target.
+     * NÃO bloqueia a thread — o caller é responsável por re-agendar se o resultado for HIT.
+     *
+     * @param game o jogo atual
+     * @return resultado do tiro indicando se o bot mantém o turno
+     */
+    public TurnResult executeSingleShot(Game game) {
+        if (!isBotTurn(game)) {
+            return TurnResult.NO_SHOT;
         }
 
-        return false;
+        ShotOutcome outcome = null;
+        int attempts = 0;
+
+        while (outcome == null && attempts < MAX_BOT_RETRIES) {
+            int[] shot = chooseShot(game.getId());
+            if (shot == null) return TurnResult.NO_SHOT;
+
+            outcome = game.shoot(BOT_ID, shot[0], shot[1]);
+            if (outcome != null) {
+                if (outcome.getResult() == ShotResult.HIT || outcome.getResult() == ShotResult.SUNK) {
+                    registerHit(game.getId(), shot[0], shot[1]);
+                }
+                if (outcome.getResult() == ShotResult.SUNK) {
+                    registerSunk(game.getId(), shot[0], shot[1]);
+                }
+            }
+            attempts++;
+        }
+
+        if (outcome == null) {
+            return TurnResult.NO_SHOT;
+        }
+
+        if (game.getPhase() == GamePhase.FINISHED) {
+            cleanup(game.getId());
+            return TurnResult.GAME_OVER;
+        }
+
+        if (isBotTurn(game)) {
+            return TurnResult.HIT;
+        }
+
+        return TurnResult.MISS;
     }
 
     /**

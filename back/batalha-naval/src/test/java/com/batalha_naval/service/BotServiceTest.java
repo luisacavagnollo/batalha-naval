@@ -231,33 +231,32 @@ class BotServiceTest {
         assertFalse(botService.isBotTurn(game));
     }
 
-    // --- executeTurn ---
+    // --- executeSingleShot ---
 
     @Test
-    void executeTurn_makesAtLeastOneShot() {
+    void executeSingleShot_makesOneShot() {
         Game game = createGameWithBot();
         placeAllShips(game);
         game.setCurrentTurnPlayerId(BotService.BOT_ID);
 
-        int[] stateUpdates = {0};
-        botService.executeTurn(game, () -> stateUpdates[0]++);
+        BotService.TurnResult result = botService.executeSingleShot(game);
 
-        assertTrue(stateUpdates[0] >= 1, "Should have made at least 1 shot");
+        assertNotEquals(BotService.TurnResult.NO_SHOT, result, "Should have made a shot");
         botService.cleanup(game.getId());
     }
 
     @Test
-    void executeTurn_returnsFalseWhenNotBotTurn() {
+    void executeSingleShot_returnsNoShotWhenNotBotTurn() {
         Game game = createGameWithBot();
         placeAllShips(game);
         game.setCurrentTurnPlayerId("player1");
 
-        boolean result = botService.executeTurn(game, () -> {});
-        assertFalse(result, "Should return false when not bot's turn");
+        BotService.TurnResult result = botService.executeSingleShot(game);
+        assertEquals(BotService.TurnResult.NO_SHOT, result, "Should return NO_SHOT when not bot's turn");
     }
 
     @Test
-    void executeTurn_canFinishGame() {
+    void executeSingleShot_canFinishGame() {
         // Criar jogo onde player1 tem apenas um destroyer (size 2)
         Game game = new Game();
         game.setId("finish-test");
@@ -285,11 +284,16 @@ class BotServiceTest {
         // Forçar turno do bot
         game.setCurrentTurnPlayerId(BotService.BOT_ID);
 
-        // Executar muitos turnos — o bot eventualmente vai afundar tudo
-        boolean finished = botService.executeTurn(game, () -> {});
+        // Executar múltiplos tiros — o bot eventualmente vai afundar tudo
+        BotService.TurnResult result = BotService.TurnResult.NO_SHOT;
+        int maxShots = 100;
+        for (int i = 0; i < maxShots && botService.isBotTurn(game); i++) {
+            result = botService.executeSingleShot(game);
+            if (result == BotService.TurnResult.GAME_OVER) break;
+        }
 
         // Pode ter terminado ou ter passado o turno; em ambos os casos a lógica é válida
-        if (finished) {
+        if (result == BotService.TurnResult.GAME_OVER) {
             assertEquals(GamePhase.FINISHED, game.getPhase());
             assertEquals(BotService.BOT_ID, game.getWinnerId());
         }

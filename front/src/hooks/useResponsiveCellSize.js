@@ -57,13 +57,20 @@ export function useResponsiveCellSize({
   const [cellSize, setCellSize] = useState(calculate);
 
   useEffect(() => {
-    const handleResize = () => setCellSize(calculate());
+    let rafId = null;
+    const handleResize = () => {
+      if (rafId) return; // Já tem um frame agendado, ignorar
+      rafId = requestAnimationFrame(() => {
+        setCellSize(calculate());
+        rafId = null;
+      });
+    };
     window.addEventListener('resize', handleResize);
-    // Recalcular também na orientação (mobile)
     window.addEventListener('orientationchange', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, [calculate]);
 

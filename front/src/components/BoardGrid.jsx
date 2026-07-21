@@ -6,6 +6,8 @@ const OCEAN_COLORS = [
   'from-[#0b1828] to-[#0e2238]',
 ];
 
+const LETRAS = 'ABCDEFGHIJ';
+
 function getOceanClass(row, col, cell, isSunkCell = false) {
   if (cell === 'HIT' && isSunkCell) return 'bg-[#8b1a1a]/50';
   if (cell === 'HIT') return 'bg-[#c45a2a]/35';
@@ -14,12 +16,16 @@ function getOceanClass(row, col, cell, isSunkCell = false) {
   return `bg-gradient-to-br ${OCEAN_COLORS[variant]}`;
 }
 
+function getCellState(cell, isSunk) {
+  if (cell === 'HIT' && isSunk) return 'navio afundado';
+  if (cell === 'HIT') return 'acerto';
+  if (cell === 'MISS') return 'erro';
+  if (cell === 'SHIP') return 'navio';
+  return 'vazio';
+}
+
 const GAP = 2;
 
-/**
- * Renderiza um grid 10x10 genérico.
- * Memoizado para evitar re-renders desnecessários.
- */
 const BoardGrid = memo(function BoardGrid({
   cellSize,
   board,
@@ -35,6 +41,13 @@ const BoardGrid = memo(function BoardGrid({
 }) {
   const gridWidth = cellSize * 10 + GAP * 9;
 
+  const handleKeyDown = useCallback((e, row, col) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onCellClick?.(row, col);
+    }
+  }, [onCellClick]);
+
   return (
     <div
       className={`relative overflow-hidden rounded-md ${className}`}
@@ -43,6 +56,8 @@ const BoardGrid = memo(function BoardGrid({
       {backgroundChildren}
 
       <div
+        role="grid"
+        aria-label="Tabuleiro 10 por 10"
         className="relative z-[1] grid grid-cols-10"
         style={{ rowGap: `${GAP}px`, columnGap: `${GAP}px`, width: `${gridWidth}px` }}
       >
@@ -52,18 +67,25 @@ const BoardGrid = memo(function BoardGrid({
           const cell = board ? board[row][col] : 'EMPTY';
           const isSunk = sunkCells ? sunkCells.has(`${row},${col}`) : false;
           const extraClass = getCellClass ? getCellClass(row, col) : '';
-          // Se getCellClass retorna algo, usa ele como fundo ao invés do ocean
           const oceanClass = extraClass ? '' : getOceanClass(row, col, cell, isSunk);
           const hoverClass = active && cell === 'EMPTY' ? 'hover:bg-[#8b1a1a]/40' : '';
           const cursor = active ? 'cursor-crosshair' : onCellClick ? 'cursor-pointer' : 'cursor-default';
+          const isInteractive = (active && cell === 'EMPTY') || !!onCellClick;
+          const state = getCellState(cell, isSunk);
 
           return (
             <div
               key={i}
+              role="gridcell"
+              aria-rowindex={row + 1}
+              aria-colindex={col + 1}
+              aria-label={`Linha ${row + 1}, Coluna ${LETRAS[col]}, ${state}`}
+              tabIndex={isInteractive ? 0 : undefined}
               style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
               className={`rounded-sm ${cursor} ${oceanClass} ${hoverClass} ${extraClass} transition-colors`}
               onClick={() => onCellClick?.(row, col)}
               onMouseEnter={() => onCellHover?.(row, col)}
+              onKeyDown={isInteractive ? (e) => handleKeyDown(e, row, col) : undefined}
             />
           );
         })}

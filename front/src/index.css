@@ -19,11 +19,15 @@ html, body, #root {
    Inspirado em Sea of Thieves, Sid Meier's Pirates, LoR Bilgewater
    ═══════════════════════════════════════════════════════════════ */
 
+/*
+ * Variáveis do tema pirata — usadas pelas classes CSS customizadas abaixo
+ * (.btn-gold, .panel-wood, .input-parchment, .divider-ornate, etc).
+ * Também disponíveis para futuros refactorings que substituam valores
+ * hardcoded nos componentes Tailwind por var(--nome).
+ */
 :root {
   /* ─── Background ─── */
   --bg-deep: #1A0F09;
-  --bg-primary: #2B1D14;
-  --bg-secondary: #3A2518;
 
   /* ─── Madeira ─── */
   --wood-dark: #4B2F1C;
@@ -33,36 +37,22 @@ html, body, #root {
 
   /* ─── Metais ─── */
   --bronze: #7A5A28;
-  --bronze-light: #8D6B32;
   --gold: #B98B2F;
   --gold-light: #D5AE47;
   --gold-bright: #F0C95C;
-  --iron: #4A4A4A;
   --iron-dark: #2E2E2E;
-  --iron-rust: #6B3D2A;
-
-  /* ─── Oceano ─── */
-  --ocean-dark: #173A59;
-  --ocean-medium: #1E4D74;
-  --ocean-light: #2A6B9E;
 
   /* ─── Texto ─── */
   --text-primary: #F4E2B6;
-  --text-secondary: #C6AE78;
   --text-muted: #8B7355;
   --text-dark: #2B1D14;
 
   /* ─── Feedback ─── */
   --error: #C84A3A;
   --error-dark: #8B2A1E;
-  --success: #4D9F59;
-  --success-dark: #2E6B38;
 
   /* ─── Efeitos ─── */
   --lamp-glow: rgba(212, 170, 80, 0.15);
-  --lamp-glow-strong: rgba(212, 170, 80, 0.35);
-  --shadow-warm: rgba(20, 10, 5, 0.8);
-  --shadow-medium: rgba(20, 10, 5, 0.5);
 
   /* ─── Tamanhos ─── */
   --rivet-size: 12px;

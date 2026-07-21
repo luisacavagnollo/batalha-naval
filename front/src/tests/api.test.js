@@ -24,7 +24,7 @@ describe('API service', () => {
       const result = await login('user1', 'pass');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth/login'),
+        'http://localhost:8080/api/auth/login',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -35,9 +35,13 @@ describe('API service', () => {
     });
 
     it('lança erro quando resposta não é ok', async () => {
-      global.fetch.mockResolvedValue({ ok: false, status: 401 });
+      global.fetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ message: 'Credenciais inválidas' }),
+      });
 
-      await expect(login('bad', 'creds')).rejects.toThrow('Login falhou');
+      await expect(login('bad', 'creds')).rejects.toThrow('Credenciais inválidas');
     });
   });
 
@@ -51,7 +55,7 @@ describe('API service', () => {
       const result = await register('new', 'new@test.com', 'pass');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth/register'),
+        'http://localhost:8080/api/auth/register',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ username: 'new', email: 'new@test.com', password: 'pass' }),
@@ -81,19 +85,26 @@ describe('API service', () => {
       const result = await fetchStats('my-token');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/stats/me'),
+        'http://localhost:8080/api/stats/me',
         expect.objectContaining({
-          headers: { Authorization: 'Bearer my-token' },
+          method: 'GET',
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer my-token',
+            'Content-Type': 'application/json',
+          }),
         })
       );
       expect(result).toEqual({ wins: 5, losses: 3 });
     });
 
-    it('retorna null quando resposta não é ok', async () => {
-      global.fetch.mockResolvedValue({ ok: false, status: 500 });
+    it('lança erro quando resposta não é ok', async () => {
+      global.fetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ message: 'Internal Server Error' }),
+      });
 
-      const result = await fetchStats('token');
-      expect(result).toBeNull();
+      await expect(fetchStats('token')).rejects.toThrow('Internal Server Error');
     });
   });
 });

@@ -30,14 +30,8 @@ export default function Lobby() {
   useEffect(() => {
     resetGame();
     fetchProfile(token).then(data => {
-      if (data?._unauthorized) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        navigate('/');
-        return;
-      }
       if (data) setMoedas(data.moedas);
-    });
+    }).catch(() => {});
     // Verificar se tem partida ativa para reconectar
     connect().then(() => {
       checkReconnect();

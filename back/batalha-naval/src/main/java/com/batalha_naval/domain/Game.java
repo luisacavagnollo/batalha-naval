@@ -43,7 +43,7 @@ public class Game {
     public long getLastActivity() { return lastActivity; }
     public void touchActivity() { this.lastActivity = System.currentTimeMillis(); }
 
-    public boolean placeShip(String playerId, ShipType type, int row, int col, Orientation orientation) {
+    public synchronized boolean placeShip(String playerId, ShipType type, int row, int col, Orientation orientation) {
         if (phase != GamePhase.PLACING_SHIPS) return false;
         return getBoardForPlayer(playerId).placeShip(type, row, col, orientation);
     }
@@ -52,14 +52,15 @@ public class Game {
         return getBoardForPlayer(playerId).getShips().size() == 5;
     }
 
-    public void startGameIfReady() {
+    public synchronized void startGameIfReady() {
+        if (phase != GamePhase.PLACING_SHIPS) return;
         if (allShipsPlaced(player1Id) && allShipsPlaced(player2Id)) {
             phase = GamePhase.IN_PROGRESS;
             currentTurnPlayerId = Math.random() < 0.5 ? player1Id : player2Id;
         }
     }
 
-    public ShotOutcome shoot(String playerId, int row, int col) {
+    public synchronized ShotOutcome shoot(String playerId, int row, int col) {
         if (phase != GamePhase.IN_PROGRESS) return null;
         if (!playerId.equals(currentTurnPlayerId)) return null;
 

@@ -12,6 +12,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
@@ -54,6 +55,7 @@ export default function Login() {
     }
 
     try {
+      setIsLoading(true);
       if (isRegister) {
         await register(username.trim(), email.trim(), password);
       } else {
@@ -62,6 +64,8 @@ export default function Login() {
       navigate('/lobby');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -193,8 +197,8 @@ export default function Login() {
               <div className="divider-ornate my-2" />
 
               {/* Botão */}
-              <PirateButton type="submit" variant="gold" size="lg" fullWidth>
-                {isRegister ? 'Cadastrar' : 'Entrar'}
+              <PirateButton type="submit" variant="gold" size="lg" fullWidth disabled={isLoading}>
+                {isLoading ? 'Aguarde...' : (isRegister ? 'Cadastrar' : 'Entrar')}
               </PirateButton>
             </form>
 

@@ -1,5 +1,6 @@
 package com.batalha_naval.security;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Rate limiter simples por IP para proteção contra brute force.
  * Permite MAX_ATTEMPTS tentativas por janela de WINDOW_MS milissegundos.
+ * Entradas expiradas são removidas periodicamente para evitar memory leak.
  */
 @Component
 public class RateLimiterService {
@@ -16,6 +18,15 @@ public class RateLimiterService {
     private static final long WINDOW_MS = 60_000; // 1 minuto
 
     private final ConcurrentHashMap<String, RateEntry> attempts = new ConcurrentHashMap<>();
+
+    /**
+     * Remove entradas cuja janela já expirou. Executado a cada 5 minutos.
+     */
+    @Scheduled(fixedRate = 300_000) // 5 minutos
+    public void cleanupExpiredEntries() {
+        long now = System.currentTimeMillis();
+        attempts.entrySet().removeIf(entry -> now - entry.getValue().windowStart > WINDOW_MS);
+    }
 
     public boolean isBlocked(String key) {
         RateEntry entry = attempts.get(key);

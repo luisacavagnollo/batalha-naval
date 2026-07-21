@@ -428,9 +428,22 @@ public class GameController {
         }
 
         try {
-            boolean finished = botService.executeTurn(game, () -> sendGameStateToPlayers(game));
-            if (finished) {
-                singlePlayerGames.remove(game.getId());
+            BotService.TurnResult result = botService.executeSingleShot(game);
+            sendGameStateToPlayers(game);
+
+            switch (result) {
+                case GAME_OVER:
+                    singlePlayerGames.remove(game.getId());
+                    break;
+                case HIT:
+                    // Bot mantém o turno — re-agendar com delay sem bloquear a thread
+                    botTurnInProgress.remove(game.getId());
+                    scheduler.schedule(() -> executeBotTurn(game), 800, TimeUnit.MILLISECONDS);
+                    return; // Não remove botTurnInProgress no finally
+                case MISS:
+                case NO_SHOT:
+                default:
+                    break;
             }
         } finally {
             botTurnInProgress.remove(game.getId());
