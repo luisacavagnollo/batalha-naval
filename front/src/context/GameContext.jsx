@@ -197,9 +197,7 @@ export function GameProvider({ children }) {
 
       const subs = [];
       subs.push(client.subscribe(`/user/topic/game/${gameId}`, (msg) => {
-        const payload = JSON.parse(msg.body);
-        console.log('[GameState received]', { phase: payload.phase, opponentName: payload.opponentName, gameId: payload.gameId });
-        dispatch({ type: 'SET_GAME_STATE', payload });
+        dispatch({ type: 'SET_GAME_STATE', payload: JSON.parse(msg.body) });
       }));
       subs.push(client.subscribe(`/user/topic/game/${gameId}/emote`, (msg) => {
         handleEmoteReceived(JSON.parse(msg.body));

@@ -9,8 +9,6 @@ import com.batalha_naval.exception.GameNotFoundException;
 import com.batalha_naval.exception.InvalidActionException;
 import com.batalha_naval.service.BotService;
 import com.batalha_naval.service.GameService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -31,8 +29,6 @@ import java.util.stream.Collectors;
 @Controller
 @EnableScheduling
 public class GameController {
-
-    private static final Logger log = LoggerFactory.getLogger(GameController.class);
 
     private final GameService gameService;
     private final BotService botService;
@@ -237,9 +233,6 @@ public class GameController {
                     msg.getRow(), msg.getCol(),
                     Orientation.valueOf(msg.getOrientation()));
             Game game = gameService.getGame(msg.getGameId());
-            log.info("placeShip: player={}, ship={}, game={}, phase={}, p1Ships={}, p2Ships={}",
-                    playerId, msg.getShipType(), msg.getGameId(), game.getPhase(),
-                    game.getBoard1().getShips().size(), game.getBoard2().getShips().size());
             sendGameStateToPlayers(game);
 
             // Se é singleplayer e o jogo acabou de iniciar com turno do bot
