@@ -6,7 +6,7 @@ const FLEET_HEIGHT = 40;
 const FLEET_HEIGHT_MOBILE = 24;
 const MAX_SHIP_SIZE = 5;
 
-export default function ShipList({ ships, title, align, mobile }) {
+export default function ShipList({ ships, title, playerName, align, mobile }) {
   const fleetCell = mobile ? FLEET_CELL_MOBILE : FLEET_CELL;
   const fleetHeight = mobile ? FLEET_HEIGHT_MOBILE : FLEET_HEIGHT;
   const maxWidth = MAX_SHIP_SIZE * fleetCell;
@@ -15,9 +15,14 @@ export default function ShipList({ ships, title, align, mobile }) {
     return (
       <div className="flex xl:hidden flex-col gap-2 items-center w-full">
         <UIPanel variant="dark" size="sm" className="w-full">
-          <h3 className="text-[#D5AE47] text-xs font-bold tracking-[0.15em] uppercase mb-3 font-['Cinzel',_serif] text-center text-shadow-gold">
+          <h3 className="text-[#D5AE47] text-xs font-bold tracking-[0.15em] uppercase mb-1 font-['Cinzel',_serif] text-center text-shadow-gold">
             {title}
           </h3>
+          {playerName && (
+            <p className="text-[#C6AE78] text-xs text-center mb-2 font-['Cinzel',_serif] truncate">
+              {playerName}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 justify-center">
             {ships.map((ship) => (
               <div
@@ -42,9 +47,16 @@ export default function ShipList({ ships, title, align, mobile }) {
     <div className={`hidden xl:flex flex-col gap-4 justify-center ${align === 'right' ? 'items-end' : 'items-start'}`}
       style={{ width: `${maxWidth + 32}px`, alignSelf: 'stretch' }}>
       <UIPanel variant="dark" size="sm" className="w-full flex flex-col gap-4">
-        <h3 className="text-[#D5AE47] text-xs font-bold tracking-[0.15em] uppercase font-['Cinzel',_serif] text-shadow-gold">
-          {title}
-        </h3>
+        <div>
+          <h3 className="text-[#D5AE47] text-xs font-bold tracking-[0.15em] uppercase font-['Cinzel',_serif] text-shadow-gold">
+            {title}
+          </h3>
+          {playerName && (
+            <p className="text-[#C6AE78] text-sm mt-1 font-['Cinzel',_serif] truncate">
+              {playerName}
+            </p>
+          )}
+        </div>
         <div className="flex flex-col gap-4 items-center">
           {ships.map((ship) => (
             <div key={ship.type}

@@ -200,7 +200,7 @@ export default function Game() {
         {/* Boards */}
         <div className="flex-1 flex items-center justify-center px-2 sm:px-4 pb-4 sm:pb-8 overflow-hidden">
           <div className="flex flex-col xl:flex-row items-center xl:items-stretch gap-6">
-            <ShipList ships={myShipsStatus} title="Minha Frota" align="left" mobile={false} />
+            <ShipList ships={myShipsStatus} title="Minha Frota" playerName={username} align="left" mobile={false} />
 
             <div className="flex flex-col items-center gap-4">
               <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start">
@@ -223,12 +223,12 @@ export default function Game() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 w-full">
-                <ShipList ships={myShipsStatus} title="Minha Frota" align="left" mobile={true} />
-                <ShipList ships={opponentShipsStatus} title={gameState?.opponentName ? `Frota de ${gameState.opponentName}` : 'Frota Inimiga'} align="right" mobile={true} />
+                <ShipList ships={myShipsStatus} title="Minha Frota" playerName={username} align="left" mobile={true} />
+                <ShipList ships={opponentShipsStatus} title="Frota Inimiga" playerName={gameState?.opponentName} align="right" mobile={true} />
               </div>
             </div>
 
-            <ShipList ships={opponentShipsStatus} title={gameState?.opponentName ? `Frota de ${gameState.opponentName}` : 'Frota Inimiga'} align="right" mobile={false} />
+            <ShipList ships={opponentShipsStatus} title="Frota Inimiga" playerName={gameState?.opponentName} align="right" mobile={false} />
           </div>
         </div>
 
