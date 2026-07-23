@@ -1,5 +1,6 @@
 package com.batalha_naval.service;
 
+import com.batalha_naval.config.GameMetrics;
 import com.batalha_naval.domain.Game;
 import org.springframework.stereotype.Service;
 
@@ -16,9 +17,11 @@ public class MatchmakingService {
     private final ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
     private final ConcurrentHashMap<String, Boolean> inQueue = new ConcurrentHashMap<>();
     private final GameService gameService;
+    private final GameMetrics gameMetrics;
 
-    public MatchmakingService(GameService gameService) {
+    public MatchmakingService(GameService gameService, GameMetrics gameMetrics) {
         this.gameService = gameService;
+        this.gameMetrics = gameMetrics;
     }
 
     /**
@@ -26,6 +29,9 @@ public class MatchmakingService {
      * Retorna o Game se já havia alguém esperando, ou null se entrou na fila.
      */
     public synchronized Game joinQueue(String playerId) {
+        // Métricas de observabilidade
+        gameMetrics.incrementMatchmakingJoins();
+
         // Se já está na fila, não adiciona de novo (atômico)
         if (inQueue.putIfAbsent(playerId, Boolean.TRUE) != null) {
             return null;

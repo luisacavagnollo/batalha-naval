@@ -1,5 +1,6 @@
 package com.batalha_naval.service;
 
+import com.batalha_naval.config.GameMetrics;
 import com.batalha_naval.domain.*;
 import com.batalha_naval.dto.PlayerStatsResponse;
 import com.batalha_naval.exception.GameFullException;
@@ -31,11 +32,14 @@ public class GameService {
     private final GameRecordRepository gameRecordRepository;
     private final PlayerStatsRepository playerStatsRepository;
     private final UserRepository userRepository;
+    private final GameMetrics gameMetrics;
 
-    public GameService(GameRecordRepository gameRecordRepository, PlayerStatsRepository playerStatsRepository, UserRepository userRepository) {
+    public GameService(GameRecordRepository gameRecordRepository, PlayerStatsRepository playerStatsRepository,
+                       UserRepository userRepository, GameMetrics gameMetrics) {
         this.gameRecordRepository = gameRecordRepository;
         this.playerStatsRepository = playerStatsRepository;
         this.userRepository = userRepository;
+        this.gameMetrics = gameMetrics;
     }
 
     public Game createGame(String playerId) {
@@ -46,6 +50,11 @@ public class GameService {
         game.setPlayer1Skin(getPlayerSkin(playerId));
         games.put(code, game);
         codeToGameId.put(code, code);
+
+        // Métricas de observabilidade
+        gameMetrics.incrementGamesCreated();
+        gameMetrics.setActiveGamesCount(games.size());
+
         return game;
     }
 
@@ -109,8 +118,15 @@ public class GameService {
         Game game = getGame(gameId);
         game.touchActivity();
         ShotOutcome outcome = game.shoot(playerId, row, col);
+
+        // Métricas de observabilidade - registrar resultado do tiro
+        if (outcome != null) {
+            gameMetrics.recordShot(outcome.getResult().name().toLowerCase());
+        }
+
         if (outcome != null && game.getPhase() == GamePhase.FINISHED) {
             persistGameResult(game);
+            gameMetrics.setActiveGamesCount(games.size());
         }
         return outcome;
     }
@@ -257,12 +273,14 @@ public class GameService {
         if (game.getPhase() == GamePhase.FINISHED) {
             games.remove(gameId);
             codeToGameId.remove(gameId);
+            gameMetrics.setActiveGamesCount(games.size());
             return;
         }
         // Se está em PLACING_SHIPS (ninguém jogou ainda), remove sem registrar
         if (game.getPhase() == GamePhase.PLACING_SHIPS) {
             games.remove(gameId);
             codeToGameId.remove(gameId);
+            gameMetrics.setActiveGamesCount(games.size());
             return;
         }
         // Se está IN_PROGRESS, tratar como surrender (registra derrota)
@@ -272,6 +290,7 @@ public class GameService {
         persistGameResult(game);
         games.remove(gameId);
         codeToGameId.remove(gameId);
+        gameMetrics.setActiveGamesCount(games.size());
     }
 
     public Game rematch(String oldGameId) {
@@ -288,6 +307,11 @@ public class GameService {
         newGame.setPlayer2Skin(getPlayerSkin(oldGame.getPlayer2Id()));
         games.put(code, newGame);
         codeToGameId.put(code, code);
+
+        // Métricas de observabilidade
+        gameMetrics.incrementGamesCreated();
+        gameMetrics.setActiveGamesCount(games.size());
+
         return newGame;
     }
 
@@ -341,6 +365,11 @@ public class GameService {
         for (String id : toRemove) {
             games.remove(id);
             codeToGameId.remove(id);
+        }
+
+        // Atualizar gauge de jogos ativos
+        if (!toRemove.isEmpty()) {
+            gameMetrics.setActiveGamesCount(games.size());
         }
 
         return toRemove;

@@ -1,5 +1,6 @@
 package com.batalha_naval.service;
 
+import com.batalha_naval.config.GameMetrics;
 import com.batalha_naval.domain.*;
 import com.batalha_naval.dto.PlayerStatsResponse;
 import com.batalha_naval.exception.GameFullException;
@@ -10,6 +11,7 @@ import com.batalha_naval.model.User;
 import com.batalha_naval.repository.GameRecordRepository;
 import com.batalha_naval.repository.PlayerStatsRepository;
 import com.batalha_naval.repository.UserRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,17 +27,19 @@ class GameServiceTest {
     private GameRecordRepository gameRecordRepository;
     private PlayerStatsRepository playerStatsRepository;
     private UserRepository userRepository;
+    private GameMetrics gameMetrics;
 
     @BeforeEach
     void setUp() {
         gameRecordRepository = mock(GameRecordRepository.class);
         playerStatsRepository = mock(PlayerStatsRepository.class);
         userRepository = mock(UserRepository.class);
+        gameMetrics = new GameMetrics(new SimpleMeterRegistry());
         when(playerStatsRepository.findByUsername(anyString())).thenReturn(Optional.empty());
         when(gameRecordRepository.findTop10ByPlayer1OrPlayer2OrderByTimestampDesc(anyString(), anyString()))
                 .thenReturn(Collections.emptyList());
         when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
-        gameService = new GameService(gameRecordRepository, playerStatsRepository, userRepository);
+        gameService = new GameService(gameRecordRepository, playerStatsRepository, userRepository, gameMetrics);
     }
 
     @Test

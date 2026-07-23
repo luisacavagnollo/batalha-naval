@@ -38,7 +38,7 @@ public class SecurityConfig {
      */
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().antMatchers("/api/health");
+        return (web) -> web.ignoring().antMatchers("/api/health", "/actuator/**");
     }
 
     @Bean
@@ -49,7 +49,7 @@ public class SecurityConfig {
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeHttpRequests(auth -> auth
-                .antMatchers("/api/auth/**", "/ws/**", "/api/health").permitAll()
+                .antMatchers("/api/auth/**", "/ws/**", "/api/health", "/actuator/**").permitAll()
                 .antMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
